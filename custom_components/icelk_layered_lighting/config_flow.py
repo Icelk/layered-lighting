@@ -19,7 +19,9 @@ from .const import DOMAIN
 OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Optional("manual_override_timeout"): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0, max=600, unit_of_measurement="minutes")
+            selector.NumberSelectorConfig(
+                min=0, max=600, step="any", unit_of_measurement="minutes"
+            )
         ),
         vol.Required(
             "dimming_speed", msg="Speed of light dimming", default=40
@@ -31,13 +33,17 @@ OPTIONS_SCHEMA = vol.Schema(
         vol.Required(
             "dimming_delay", msg="Delay before dimming kicks in", default=0.5
         ): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0.1, max=5, unit_of_measurement="seconds")
+            selector.NumberSelectorConfig(
+                min=0.1, max=5, step="any", unit_of_measurement="seconds"
+            )
         ),
         vol.Required(
             "toggle_speed",
             default=0.2,
         ): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0, max=60, unit_of_measurement="seconds")
+            selector.NumberSelectorConfig(
+                min=0, max=60, step="any", unit_of_measurement="seconds"
+            )
         ),
         vol.Required(
             "action_interval",
@@ -70,7 +76,14 @@ OPTIONS_SCHEMA = vol.Schema(
                     "factor": selector.ObjectSelectorField(
                         label="Light brightness factor (for sun power action)",
                         required=False,
-                        selector={"number": {"min": 0.1, "max": 10, "default": 1}},
+                        selector={
+                            "number": {
+                                "min": 0.1,
+                                "max": 10,
+                                "step": "any",
+                                "default": 1,
+                            }
+                        },
                     ),
                     "min_brightness": selector.ObjectSelectorField(
                         label="Minimum brightness while on",
@@ -79,6 +92,7 @@ OPTIONS_SCHEMA = vol.Schema(
                             "number": {
                                 "min": 1,
                                 "max": 100,
+                                "step": "any",
                                 "default": 30,
                                 "unit_of_measurement": "%",
                             }

@@ -116,8 +116,10 @@ sun_power:
         number:
           min: -1
           max: 1
+          step: "any"
     factor:
       selector:
         number:
           min: -4
           max: 4
+          step: "any"

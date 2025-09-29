@@ -691,6 +691,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             dimming_started[idx] = False
 
         async def dim_toggle(e, ctx, idx=idx, light=light):
+            set_override(idx, datetime.now())
             await toggle_light(light["entity"])
 
         if down:
