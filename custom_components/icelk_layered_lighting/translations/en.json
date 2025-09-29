@@ -1,0 +1,133 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add light control",
+        "data": {
+          "name": "Name",
+          "manual_override_timeout": "Reset manual override in x minutes",
+          "dimming_speed": "Speed of light dimming",
+          "toggle_speed": "Seconds to transition turn on / turn off lights",
+          "action_interval": "Update lights this often",
+          "switch_threshold": "Turn on switches if the target brightness is above this",
+          "lights": "Lights",
+          "layers": "Layers"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Add light control",
+        "data": {
+          "manual_override_timeout": "Reset manual override in x minutes",
+          "dimming_speed": "Speed of light dimming",
+          "toggle_speed": "Seconds to transition turn on / turn off lights",
+          "action_interval": "Update lights this often",
+          "switch_threshold": "Turn on switches if the target brightness is above this",
+          "lights": "Lights",
+          "layers": "Layers"
+        }
+      }
+    }
+  },
+  "services": {
+    "manual_override_enable": {
+      "name": "Enable manual override",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "manual_override_disable": {
+      "name": "Disable manual override",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "dimming_down": {
+      "name": "Start dimming",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "dimming_up": {
+      "name": "Stop dimming",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "dimming_toggle": {
+      "name": "Toggle light",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "layer_enable": {
+      "name": "Enable light layer",
+      "fields": {
+        "layer_id": {
+          "name": "Layer ID"
+        },
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "layer_disable": {
+      "name": "Disable light layer",
+      "fields": {
+        "layer_id": {
+          "name": "Layer ID"
+        },
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "layer_disable_all": {
+      "name": "Disable all light layer",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "update_internal_state": {
+      "name": "Update internal state (advanced)",
+      "description": "When this integration starts, it caches the state for all lights. Each scene is activated which results in flickering. If any scene changes, you must call this. Maybe do it once per day.",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        }
+      }
+    },
+    "sun_power": {
+      "name": "Set lights based on intensity of sun (only to be used in the Layered Lighting config)",
+      "fields": {
+        "entry": {
+          "name": "Config entry"
+        },
+        "absolute": {
+          "name": "Normalize value so midnight is 100% and midday -100% (dusk & dawn becomes 0%)"
+        },
+        "offset": {
+          "name": "Offset to the brightness. 0.3 => 30% brighter all the time"
+        },
+        "factor": {
+          "name": "Multiplicative factor to the brightness. Applied before the offset."
+        }
+      }
+    }
+  }
+}

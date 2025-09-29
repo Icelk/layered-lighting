@@ -1,0 +1,16 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  validate-hacs:
+    runs-on: ubuntu-latest
+    name: With HACS Action
+    steps:
+    - name: 🏃 HACS validation
+      uses: hacs/action@main
+      with:
+        category: integration
+        ignore: brands

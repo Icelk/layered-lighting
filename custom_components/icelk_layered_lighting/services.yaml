@@ -1,0 +1,123 @@
+manual_override_enable:
+  target:
+    entity:
+      domain: [light, switch, input_boolean]
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+
+manual_override_disable:
+  target:
+    entity:
+      domain: [light, switch, input_boolean]
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+
+dimming_down:
+  target:
+    entity:
+      domain: [light, switch, input_boolean]
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+
+dimming_up:
+  target:
+    entity:
+      domain: [light, switch, input_boolean]
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+
+dimming_toggle:
+  target:
+    entity:
+      domain: [light, switch, input_boolean]
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+
+layer_enable:
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+    layer_id:
+      required: true
+      selector:
+        text:
+layer_disable:
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+    layer_id:
+      required: true
+      selector:
+        text:
+layer_disable_all:
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+
+update_internal_state:
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+
+sun_power:
+  fields:
+    entry:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: icelk_layered_lighting
+    absolute:
+      selector:
+        boolean:
+    offset:
+      selector:
+        number:
+          min: -1
+          max: 1
+    factor:
+      selector:
+        number:
+          min: -4
+          max: 4
