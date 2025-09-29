@@ -7,7 +7,7 @@
   "version": "0.1.0",
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://www.home-assistant.io/integrations/icelk_layered_lighting",
+  "documentation": "https://github.com/icelk/layered-lighting",
   "homekit": {},
   "iot_class": "local_push",
   "quality_scale": "bronze",
