@@ -102,12 +102,6 @@ update_internal_state:
 
 sun_power:
   fields:
-    entry:
-      required: true
-      selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
     absolute:
       selector:
         boolean:

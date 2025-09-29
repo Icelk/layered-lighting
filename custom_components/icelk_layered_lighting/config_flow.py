@@ -42,7 +42,7 @@ OPTIONS_SCHEMA = vol.Schema(
             default=0.2,
         ): selector.NumberSelector(
             selector.NumberSelectorConfig(
-                min=0, max=60, step="any", unit_of_measurement="seconds"
+                min=0, max=5, step="any", unit_of_measurement="seconds"
             )
         ),
         vol.Required(

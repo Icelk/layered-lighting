@@ -135,10 +135,6 @@
             "name": "Set lights based on intensity of sun (only to be used in the Layered Lighting config)",
             "description": "Don't call this ;)",
             "fields": {
-                "entry": {
-                    "name": "Config entry",
-                    "description": "Which entry to operate on."
-                },
                 "absolute": {
                     "name": "Normalize value",
                     "description": "Normalize value so midnight is 100% and midday -100% (dusk & dawn becomes 0%)"

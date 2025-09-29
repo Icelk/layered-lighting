@@ -257,7 +257,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         and (brightness >= switch_threshold if brightness else True)
                     )
                     else "turn_off",
-                    attrs,
+                    {"entity_id": entity},
                 )
             case "binary_input":
                 hass.states.async_set(entity, state, {"entity_id": entity})
