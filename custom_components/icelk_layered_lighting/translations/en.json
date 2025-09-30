@@ -12,7 +12,7 @@
                     "switch_threshold": "Turn on switches if the target brightness is above this",
                     "manual_detect_enabled": "Try to detect changes, triggering the manual override state",
                     "lights": "Lights",
-                    "layers": "Layers"
+                    "layers": "Layers. Bottom is used when manually turning on lights."
                 }
             }
         }
@@ -29,7 +29,7 @@
                     "switch_threshold": "Turn on switches if the target brightness is above this",
                     "manual_detect_enabled": "Try to detect changes, triggering the manual override state",
                     "lights": "Lights",
-                    "layers": "Layers"
+                    "layers": "Layers. Bottom is used when manually turning on lights."
                 }
             }
         }

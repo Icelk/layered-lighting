@@ -293,13 +293,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 await update_light(idx, lights[idx])
                 return
         s = entity_state or hass.states.get(entity)
-        await set_entity_state(
-            entity,
-            "on" if s.state == "off" else "off",
-            s.attributes,
-            entity_state=s,
-            check_override=False,
-        )
+        if s.state == "off":
+            # special turn on logic
+            # first, try base layer. If that's dark, turn on normally
+            if len(device_callbacks) >= 1 and (cb := device_callbacks[0].get(entity)):
+                await cb()
+                if hass.states.get(entity).state == "off":
+                    # normal turn on
+                    await set_entity_state(
+                        entity,
+                        "on",
+                        s.attributes,
+                        entity_state=s,
+                        check_override=False,
+                    )
+            else:
+                # normal turn on since we don't have layers
+                await set_entity_state(
+                    entity,
+                    "on",
+                    s.attributes,
+                    entity_state=s,
+                    check_override=False,
+                )
+        else:
+            await set_entity_state(
+                entity,
+                "off",
+                s.attributes,
+                entity_state=s,
+                check_override=False,
+            )
         idx = lights_id_to_idx.get(entity)
         if idx is not None:
             set_override(idx, datetime.now())
