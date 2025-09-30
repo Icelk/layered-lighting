@@ -610,9 +610,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return
         dimming_started[idx] = True
         set_override(idx, start)
-        if start_brightness == 0:
+        if start_brightness < 10:
+            start_brightness = 3
             dim_direction_up[idx] = True
         if start_brightness > 220:
+            start_brightness = 250
             dim_direction_up[idx] = False
         while True:
             await sleep(interval)
@@ -631,7 +633,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 current_brightness = 3
                 dimming[idx] = False
             if current_brightness > 254:
-                current_brightness = 254
+                current_brightness = 255
                 dimming[idx] = False
             await set_entity_state(
                 light,
