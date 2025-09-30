@@ -296,7 +296,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if s.state == "off":
             # special turn on logic
             # first, try base layer. If that's dark, turn on normally
-            if len(device_callbacks) >= 1 and (cb := device_callbacks[0].get(entity)):
+            if len(device_callbacks) >= 1 and (cb := device_callbacks[-1].get(entity)):
                 await cb()
                 if hass.states.get(entity).state == "off":
                     # normal turn on
