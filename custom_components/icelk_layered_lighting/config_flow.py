@@ -57,6 +57,10 @@ OPTIONS_SCHEMA = vol.Schema(
         ): selector.NumberSelector(
             selector.NumberSelectorConfig(min=0, max=100, unit_of_measurement="%")
         ),
+        vol.Required(
+            "manual_detect_enabled",
+            default=True,
+        ): selector.BooleanSelector(),
         vol.Optional("lights", msg="Lights"): selector.ObjectSelector(
             selector.ObjectSelectorConfig(
                 fields={

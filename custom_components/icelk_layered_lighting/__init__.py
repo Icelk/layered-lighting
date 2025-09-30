@@ -121,6 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             data["layer_sensors"] = []
         return data
 
+    # support multiple triggers
     async def add_trigger(trigger, callback):
         triggers = await async_validate_trigger_config(
             hass, _transform_triggers(trigger)
@@ -148,6 +149,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     get_data()["device"] = device
 
+    manual_detect_enabled = entry.options.get("manual_detect_enabled")
+    manual_detect_enabled = (
+        manual_detect_enabled if manual_detect_enabled is not None else True
+    )
     manual_override_timeout = entry.options.get("manual_override_timeout") or 0
     action_interval = entry.options.get("action_interval") or 0
     dimming_speed = entry.options.get("dimming_speed") or 40
@@ -215,6 +220,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         attrs,
         check_override=True,
         entity_state: State | None = None,
+        blocking=False,
     ):
         match entity.split(".")[0]:
             case "light":
@@ -224,8 +230,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 }
 
                 attributes = extract_attributes(attrs, base) if state == "on" else base
-
-                if check_override and (idx := lights_id_to_idx.get(entity)):
+                # TODO: fix manual detection
+                if (
+                    check_override
+                    and manual_detect_enabled
+                    and (idx := lights_id_to_idx.get(entity))
+                ):
                     last_state = last_states[idx]
                     # get state
                     if entity_state is None:
@@ -240,9 +250,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         return
 
                 await hass.services.async_call(
-                    "light", "turn_on" if state == "on" else "turn_off", attributes
+                    "light",
+                    "turn_on" if state == "on" else "turn_off",
+                    attributes,
+                    blocking=blocking,
                 )
-                if check_override and (idx := lights_id_to_idx.get(entity)):
+                if (
+                    check_override
+                    and manual_detect_enabled
+                    and (idx := lights_id_to_idx.get(entity))
+                ):
                     s = hass.states.get(entity)
                     next_state = extract_full_state(s)
                     last_states[idx] = {**next_state}
@@ -258,6 +275,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     else "turn_off",
                     {"entity_id": entity},
+                    blocking=blocking,
                 )
             case "binary_input":
                 hass.states.async_set(entity, state, {"entity_id": entity})
@@ -266,15 +284,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if idx := lights_id_to_idx.get(entity):
             if overrides[idx] is not None:
                 set_override(idx, None)
+                print("set reset")
                 await update_light(idx, lights[idx])
                 return
         s = entity_state or hass.states.get(entity)
+        print("set normal")
         await set_entity_state(
             entity,
             "on" if s.state == "off" else "off",
             s.attributes,
             entity_state=s,
+            check_override=False,
         )
+        if idx := lights_id_to_idx.get(entity):
+            set_override(idx, datetime.now())
 
     async def do_custom_lighting(entity_id: str, config: _SunConfig):
         idx = lights_id_to_idx.get(entity_id)
@@ -328,15 +351,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if realize_updates:
             await update_layers()
 
-    def set_override(idx: int, overriden: None | datetime):
-        overrides[idx] = overriden
+    def set_override(idx: int, overridden: None | datetime):
+        print("set override", idx, overridden)
+        overrides[idx] = overridden
         # reset last states when override done, so it won't start another override
-        if overriden is None:
+        if overridden is None:
             last_states[idx] = None
         if data := get_data().get("override_sensors_data"):
             sensor = data[idx]
             if sensor:
-                sensor.own_update(overriden is not None)
+                sensor.own_update(overridden is not None)
 
     def light_set_sensor(idx: int, layer: str):
         if data := get_data().get("layer_sensors_data"):
@@ -362,11 +386,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # override
         override = overrides[idx]
         if override is not None:
-            if (
-                manual_override_timeout != 0
-                and (datetime.now() - override).total_seconds()
+            if manual_override_timeout != 0 and (
+                (datetime.now() - override).total_seconds()
                 > manual_override_timeout * 60
             ):
+                print("reset light in update")
                 set_override(idx, None)
             else:
                 return
@@ -396,6 +420,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def resolve_layers():
         device_callbacks.clear()
+        for i in range(len(overrides)):
+            overrides[i] = datetime.now()
         for layer in layers:
             callbacks = {}
             local_lights = layer.get("lights")
@@ -432,7 +458,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     entities = list(entities)
 
                 await action(layer["action"][0])
-                await sleep(1)
+                await sleep(3)
                 for entity in entities:
                     state = hass.states.get(entity)
                     if state is not None:
@@ -468,6 +494,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
 
             device_callbacks.append(callbacks)
+        for i in range(len(overrides)):
+            overrides[i] = None
         await update_layers()
 
     @callback
@@ -576,13 +604,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         start_brightness: float = s.attributes.get("brightness") or 0
         if s.state == "off":
             start_brightness = 0
+        start = datetime.now()
+        interval = 0.1
+        await sleep(dimming_delay - interval)
+        if not dimming[idx]:
+            return
+        dimming_started[idx] = True
+        set_override(idx, start)
         if start_brightness == 0:
             dim_direction_up[idx] = True
-        start = datetime.now()
-        set_override(idx, start)
-        interval = 0.05
-        await sleep(dimming_delay - interval)
-        dimming_started[idx] = True
+        if start_brightness > 220:
+            dim_direction_up[idx] = False
         while True:
             await sleep(interval)
             if not dimming[idx]:
@@ -607,6 +639,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "on",
                 {**s.attributes, "brightness": int(current_brightness)},
                 check_override=False,
+                blocking=True,
             )
             if not dimming[idx]:
                 break
@@ -621,7 +654,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if idx is None:
                 raise Exception("light not registered")
             dimming[idx] = True
-            entry.async_create_background_task(hass, dim(entity), f"dim {entity}")
+            entry.async_create_task(hass, dim(entity), f"dim {entity}")
 
     entry_data["dimming_down"] = handle_dimming_down
 
@@ -632,19 +665,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             idx = lights_id_to_idx.get(entity)
             if idx is None:
                 raise Exception("light not registered")
-            s = hass.states.get(entity)
-            if s is None:
-                raise Exception("invalid light entity when toggling %s", entity)
             if dimming[idx] and not dimming_started[idx]:
-                entry.async_create_task(
-                    hass,
-                    set_entity_state(
-                        entity,
-                        "on" if s.state == "off" else "off",
-                        s.attributes,
-                        entity_state=s,
-                    ),
-                )
+                dimming[idx] = False
+                entry.async_create_task(hass, toggle_light(entry))
 
             dimming[idx] = False
             dimming_started[idx] = False
@@ -655,14 +678,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def handle_dimming_toggle(call: ServiceCall):
         entities = call.data.get("entity_id") or []
         for entity in entities:
-            idx = lights_id_to_idx.get(entity)
-            if idx is None:
-                raise Exception("light not registered")
-            set_override(idx, datetime.now())
-            s = hass.states.get(entity)
-            if s is None:
-                raise Exception("invalid light entity when toggling %s", entity)
-            entry.async_create_task(hass, toggle_light(entity, s))
+            entry.async_create_task(hass, toggle_light(entity))
 
     entry_data["dimming_toggle"] = handle_dimming_toggle
 
@@ -678,20 +694,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
 
         async def dim_up(e, ctx, idx=idx, light=light):
-            s = hass.states.get(light["entity"])
-            if s and dimming[idx] and not dimming_started[idx]:
+            print(overrides)
+            if dimming[idx] and not dimming_started[idx]:
                 dimming[idx] = False
-                await set_entity_state(
-                    light["entity"],
-                    "on" if s.state == "off" else "off",
-                    s.attributes,
-                    entity_state=s,
-                )
+                await toggle_light(light["entity"])
             dimming[idx] = False
             dimming_started[idx] = False
+            print(overrides)
 
         async def dim_toggle(e, ctx, idx=idx, light=light):
-            set_override(idx, datetime.now())
             await toggle_light(light["entity"])
 
         if down:
