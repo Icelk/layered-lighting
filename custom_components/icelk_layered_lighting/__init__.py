@@ -669,7 +669,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 raise Exception("light not registered")
             if dimming[idx] and not dimming_started[idx]:
                 dimming[idx] = False
-                entry.async_create_task(hass, toggle_light(entry))
+                entry.async_create_task(hass, toggle_light(entity))
 
             dimming[idx] = False
             dimming_started[idx] = False
