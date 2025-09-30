@@ -511,10 +511,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         trigger_enable = layer.get("trigger_enable")
         trigger_disable = layer.get("trigger_disable")
 
-        async def enable_layer(e, ctx, idx=idx):
+        async def enable_layer(e=None, ctx=None, idx=idx):
             await set_layer(idx, True)
 
-        async def disable_layer(e, ctx, idx=idx):
+        async def disable_layer(e=None, ctx=None, idx=idx):
             await set_layer(idx, False)
 
         if trigger_enable:
@@ -687,22 +687,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         up = light.get("dimming_btn_up_trigger")
         toggle = light.get("toggle_trigger")
 
-        async def dim_down(e, ctx, idx=idx, light=light):
+        async def dim_down(e=None, ctx=None, idx=idx, light=light):
             dimming[idx] = True
             entry.async_create_task(
                 hass, dim(light["entity"]), f"dim {light['entity']}"
             )
 
-        async def dim_up(e, ctx, idx=idx, light=light):
-            print(overrides)
+        async def dim_up(e=None, ctx=None, idx=idx, light=light):
             if dimming[idx] and not dimming_started[idx]:
                 dimming[idx] = False
                 await toggle_light(light["entity"])
             dimming[idx] = False
             dimming_started[idx] = False
-            print(overrides)
 
-        async def dim_toggle(e, ctx, idx=idx, light=light):
+        async def dim_toggle(e=None, ctx=None, idx=idx, light=light):
             await toggle_light(light["entity"])
 
         if down:
