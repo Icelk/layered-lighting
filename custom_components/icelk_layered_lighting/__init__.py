@@ -719,18 +719,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entity = er.async_get(light["entity"])
         if entity and entity.device_id:
             light_dev = device_registry.async_get(entity.device_id)
-            devide_info = dr.DeviceInfo(
+            device_info = dr.DeviceInfo(
                 identifiers=light_dev.identifiers,
                 name=light_dev.name,
+                connections=light_dev.connections,
             )
             layer_sensors.append(
                 (
-                    devide_info,
+                    device_info,
                     f"{DOMAIN}.layer_sensor.{light['entity']}",
                 )
             )
             override_sensors.append(
-                (devide_info, f"{DOMAIN}.override_sensor.{light['entity']}")
+                (device_info, f"{DOMAIN}.override_sensor.{light['entity']}")
             )
         else:
             _LOGGER.warning("no device found for entity %s", light["entity"])
