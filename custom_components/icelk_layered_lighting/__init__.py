@@ -282,14 +282,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass.states.async_set(entity, state, {"entity_id": entity})
 
     async def toggle_light(entity: str, entity_state: State | None = None):
-        if idx := lights_id_to_idx.get(entity):
+        idx = lights_id_to_idx.get(entity)
+        if idx is not None:
             if overrides[idx] is not None:
                 set_override(idx, None)
-                print("set reset")
                 await update_light(idx, lights[idx])
                 return
         s = entity_state or hass.states.get(entity)
-        print("set normal")
         await set_entity_state(
             entity,
             "on" if s.state == "off" else "off",
@@ -297,7 +296,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entity_state=s,
             check_override=False,
         )
-        if idx := lights_id_to_idx.get(entity):
+        idx = lights_id_to_idx.get(entity)
+        if idx is not None:
             set_override(idx, datetime.now())
 
     async def do_custom_lighting(entity_id: str, config: _SunConfig):
@@ -353,7 +353,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await update_layers()
 
     def set_override(idx: int, overridden: None | datetime):
-        print("set override", idx, overridden)
         overrides[idx] = overridden
         # reset last states when override done, so it won't start another override
         if overridden is None:
@@ -391,7 +390,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 (datetime.now() - override).total_seconds()
                 > manual_override_timeout * 60
             ):
-                print("reset light in update")
                 set_override(idx, None)
             else:
                 return
