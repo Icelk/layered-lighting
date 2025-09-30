@@ -15,8 +15,8 @@ async def async_setup_entry(hass, entry, async_add_entities: AddEntitiesCallback
         LayerActiveSwitch(*definition) if definition else None
         for definition in definitions
     ]
-    data["layer_switches_data"] = switches
     async_add_entities([switch for switch in switches if switch])
+    data["layer_switches_data"] = switches
 
 
 class LayerActiveSwitch(SwitchEntity):

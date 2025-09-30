@@ -16,8 +16,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         ActiveLayerSensor(definition[0], definition[1]) if definition else None
         for definition in definitions
     ]
-    data["layer_sensors_data"] = sensors
     async_add_entities([sensor for sensor in sensors if sensor])
+    data["layer_sensors_data"] = sensors
 
 
 class ActiveLayerSensor(SensorEntity):

@@ -14,8 +14,8 @@ async def async_setup_entry(hass, entry, async_add_entities: AddEntitiesCallback
         ManualOverrideSensor(definition[0], definition[1]) if definition else None
         for definition in definitions
     ]
-    data["override_sensors_data"] = sensors
     async_add_entities([sensor for sensor in sensors if sensor])
+    data["override_sensors_data"] = sensors
 
 
 class ManualOverrideSensor(BinarySensorEntity):
