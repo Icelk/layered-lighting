@@ -143,11 +143,11 @@
                 },
                 "offset": {
                     "name": "Offset",
-                    "description": "Offset to the brightness. 0.3 => 30% brighter all the time"
+                    "description": "Offset to the brightness. 0.3 => 30% brighter all the time. Recommended: 0.7"
                 },
                 "factor": {
                     "name": "Factor",
-                    "description": "Multiplicative factor to the brightness. Applied before the offset."
+                    "description": "Multiplicative factor to the brightness. Applied before the offset. Recommended: 0.5"
                 }
             }
         }

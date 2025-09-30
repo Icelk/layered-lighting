@@ -327,8 +327,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         if config.get("absolute"):
             altitude /= abs(minI)
-        altitude *= config.get("factor") or 1
-        altitude += config.get("offset") or 0
+        altitude *= config.get("factor") or 0.5
+        altitude += config.get("offset") or 0.7
+
         await set_entity_state(
             entity_id,
             "on",
