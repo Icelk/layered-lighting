@@ -272,7 +272,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "turn_on"
                     if (
                         state == "on"
-                        and (float(brightness) / 255 >= switch_threshold if brightness else True)
+                        and (
+                            float(brightness) / 255 >= switch_threshold
+                            if brightness
+                            else True
+                        )
                     )
                     else "turn_off",
                     {"entity_id": entity},
@@ -381,6 +385,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 return idx
 
         return -1
+
+    async def update_lights(indices: list[int]):
+        for idx in indices:
+            await update_light(idx, lights[idx])
 
     async def update_light(idx: int, light: _Light):
         entity = light["entity"]
@@ -565,24 +573,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     @callback
     def handle_enable_manual_override(call: ServiceCall):
         entities = call.data.get("entity_id") or []
+        indices = []
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
-            if idx is None:
-                raise Exception("light not registered")
-            set_override(idx, datetime.now())
-        entry.async_create_task(hass, update_light(idx, lights[idx]))
+            if idx is not None:
+                indices.append(idx)
+                set_override(idx, datetime.now())
+        entry.async_create_task(hass, update_lights(indices))
 
     entry_data["manual_override_enable"] = handle_enable_manual_override
 
     @callback
     def handle_disable_manual_override(call: ServiceCall):
         entities = call.data.get("entity_id") or []
+        indices = []
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
-            if idx is None:
-                raise Exception("light not registered")
-            set_override(idx, None)
-        entry.async_create_task(hass, update_light(idx, lights[idx]))
+            if idx is not None:
+                indices.append(idx)
+                set_override(idx, None)
+        entry.async_create_task(hass, update_lights(indices))
 
     entry_data["manual_override_disable"] = handle_disable_manual_override
 
