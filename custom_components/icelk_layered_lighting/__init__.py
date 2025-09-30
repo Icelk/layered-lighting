@@ -272,7 +272,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "turn_on"
                     if (
                         state == "on"
-                        and (brightness >= switch_threshold if brightness else True)
+                        and (float(brightness) / 255 >= switch_threshold if brightness else True)
                     )
                     else "turn_off",
                     {"entity_id": entity},
