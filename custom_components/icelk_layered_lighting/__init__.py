@@ -657,6 +657,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if start_brightness > 220:
             start_brightness = 250
             dim_direction_up[idx] = False
+        iterations = 0
         while True:
             await sleep(interval)
             if not dimming[idx]:
@@ -682,10 +683,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 {**s.attributes, "brightness": int(current_brightness)},
                 check_override=False,
                 blocking=True,
-                transition=interval,
+                transition=interval * 2
+                if iterations == 0
+                else (now - start).total_seconds() / iterations,
             )
             if not dimming[idx]:
                 break
+            iterations += 1
         dim_direction_up[idx] = not dim_direction_up[idx]
         dimming_started[idx] = False
 
