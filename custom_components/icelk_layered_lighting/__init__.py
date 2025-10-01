@@ -8,6 +8,7 @@ import logging
 from math import pi
 from typing import TYPE_CHECKING, Callable, Literal, TypedDict
 
+#from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry
 
 from homeassistant.config_entries import ConfigEntry
@@ -21,6 +22,7 @@ from homeassistant.helpers.service import (
     async_call_from_config,
     async_extract_entity_ids,
 )
+from homeassistant.setup import async_wait_component
 from suncalc import get_position
 
 if TYPE_CHECKING:
@@ -59,7 +61,26 @@ class _SunConfig(TypedDict):
     factor: float
 
 
+# TODO: in 2026: remove hass from async_extract_entity_ids
+
+
 entries = {}
+
+
+async def get_integration_for_entity(hass: HomeAssistant, entity_id: str) -> str | None:
+    ent_reg = entity_registry.async_get(hass)
+    dev_reg = dr.async_get(hass)
+
+    ent_entry = ent_reg.async_get(entity_id)
+    if not ent_entry or not ent_entry.device_id:
+        return None
+
+    device = dev_reg.async_get(ent_entry.device_id)
+    if not device or not device.primary_config_entry:
+        return None
+
+    entry = hass.config_entries.async_get_entry(device.primary_config_entry)
+    return entry.domain if entry else None
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -119,6 +140,32 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Layered Lighting from a config entry."""
 
+    manual_detect_enabled = entry.options.get("manual_detect_enabled")
+    manual_detect_enabled = (
+        manual_detect_enabled if manual_detect_enabled is not None else True
+    )
+    manual_override_timeout = entry.options.get("manual_override_timeout") or 0
+    action_interval = entry.options.get("action_interval") or 0
+    dimming_speed = entry.options.get("dimming_speed") or 40
+    dimming_delay = entry.options.get("dimming_delay") or 0.5
+    toggle_speed = entry.options.get("toggle_speed") or 0.2
+    switch_threshold = (entry.options.get("switch_threshold") or 20) / 100
+    layers: list[_Layer] = entry.options.get("layers") or []
+    layers_id_to_idx = {layer["name"]: idx for (idx, layer) in enumerate(layers)}
+    lights: list[_Light] = entry.options.get("lights") or []
+    lights_id_to_idx = {light["entity"]: idx for (idx, light) in enumerate(lights)}
+
+    other_integrations = [
+        await get_integration_for_entity(hass, light["entity"]) for light in lights
+    ]
+    other_integrations = set(
+        integration for integration in other_integrations if integration
+    )
+    for integration in other_integrations:
+        # if integration not in hass.config.components:
+        #     raise ConfigEntryNotReady(f"integration {integration} not ready")
+        await async_wait_component(hass, integration)
+
     def get_data():
         data = raw_get_data(hass, entry)
         if "triggers" not in data:
@@ -155,25 +202,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     get_data()["device"] = device
 
-    manual_detect_enabled = entry.options.get("manual_detect_enabled")
-    manual_detect_enabled = (
-        manual_detect_enabled if manual_detect_enabled is not None else True
-    )
-    manual_override_timeout = entry.options.get("manual_override_timeout") or 0
-    action_interval = entry.options.get("action_interval") or 0
-    dimming_speed = entry.options.get("dimming_speed") or 40
-    dimming_delay = entry.options.get("dimming_delay") or 0.5
-    toggle_speed = entry.options.get("toggle_speed") or 0.2
-    switch_threshold = (entry.options.get("switch_threshold") or 20) / 100
-    layers: list[_Layer] = entry.options.get("layers") or []
-    layers_id_to_idx = {layer["name"]: idx for (idx, layer) in enumerate(layers)}
-    lights: list[_Light] = entry.options.get("lights") or []
-    lights_id_to_idx = {light["entity"]: idx for (idx, light) in enumerate(lights)}
-
     tries = 0
     for light in lights:
         while True:
-            if tries > 300:
+            if tries > 30:
                 _LOGGER.error("lights were not available")
                 return False
             if hass.states.get(light["entity"]) is None:
