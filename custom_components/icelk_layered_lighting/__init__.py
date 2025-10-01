@@ -621,7 +621,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_create_background_task(hass, runtime(), "update lights")
 
-    @callback
     def handle_layer_enable(call: ServiceCall):
         layer = call.data.get("layer_id") or ""
         idx = layers_id_to_idx.get(layer)
@@ -631,7 +630,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry_services["layer_enable"] = handle_layer_enable
 
-    @callback
     def handle_layer_disable(call: ServiceCall):
         layer = call.data.get("layer_id") or ""
         idx = layers_id_to_idx.get(layer)
@@ -647,15 +645,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         await update_layers()
 
-    @callback
     def handle_layer_disable_all(call: ServiceCall):
         entry.async_create_task(hass, layer_disable_all())
 
     entry_services["layer_disable_all"] = handle_layer_disable_all
 
-    @callback
     async def handle_enable_manual_override(call: ServiceCall):
-        entities = await async_extract_entity_ids(call)
+        entities = await async_extract_entity_ids(hass, call)
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
             if idx is not None:
@@ -663,9 +659,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry_services["manual_override_enable"] = handle_enable_manual_override
 
-    @callback
     async def handle_disable_manual_override(call: ServiceCall):
-        entities = await async_extract_entity_ids(call)
+        entities = await async_extract_entity_ids(hass, call)
         indices = []
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
@@ -743,9 +738,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dim_direction_up[idx] = not dim_direction_up[idx]
         dimming_started[idx] = False
 
-    @callback
     async def handle_dimming_down(call: ServiceCall):
-        entities = await async_extract_entity_ids(call)
+        entities = await async_extract_entity_ids(hass, call)
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
             if idx is None:
@@ -755,9 +749,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry_services["dimming_down"] = handle_dimming_down
 
-    @callback
     async def handle_dimming_up(call: ServiceCall):
-        entities = await async_extract_entity_ids(call)
+        entities = await async_extract_entity_ids(hass, call)
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
             if idx is None:
@@ -771,9 +764,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry_services["dimming_up"] = handle_dimming_up
 
-    @callback
     async def handle_dimming_toggle(call: ServiceCall):
-        entities = await async_extract_entity_ids(call)
+        entities = await async_extract_entity_ids(hass, call)
         for entity in entities:
             await toggle_light(entity)
 
