@@ -419,6 +419,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def update_light(idx: int, light: _Light):
         entity = light["entity"]
+
+        layer = light_get_layer(entity)
+        # above override logic, since we always want to show correct layer
+        light_set_sensor(idx, "<none => off>" if layer == -1 else layers[layer]["name"])
+
         # override
         override = overrides[idx]
         if override is not None:
@@ -429,8 +434,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 set_override(idx, None)
             else:
                 return
-        layer = light_get_layer(entity)
-        light_set_sensor(idx, "<none => off>" if layer == -1 else layers[layer]["name"])
 
         if layer == -1:
             s = hass.states.get(entity)
