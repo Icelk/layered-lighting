@@ -270,9 +270,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     and manual_detect_enabled
                     and (idx := lights_id_to_idx.get(entity))
                 ):
-                    s = hass.states.get(entity)
-                    next_state = extract_full_state(s)
-                    last_states[idx] = {**next_state}
+                    # we don't want to enable blocking every time we set a state. But we still need to wait for new state. So sleep on another task.
+                    async def check_state(sleep_s=1):
+                        await sleep(sleep_s)
+                        s = hass.states.get(entity)
+                        next_state = extract_full_state(s)
+                        last_states[idx] = {**next_state}
+
+                    if blocking:
+                        await check_state(0)
+                    else:
+                        entry.async_create_background_task(
+                            hass,
+                            check_state(),
+                            name=f"{DOMAIN}.log_state_for_manual_override.{entity}",
+                        )
 
             case "switch":
                 brightness = attrs.get("brightness")
@@ -316,7 +328,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     None,
                 )
             ):
-                await cb(blocking=True)
+                await cb(blocking=True, check_override=False)
                 if hass.states.get(entity).state == "off":
                     # normal turn on
                     await set_entity_state(
@@ -347,7 +359,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if idx is not None:
             set_override(idx, datetime.now())
 
-    async def do_custom_lighting(entity_id: str, config: _SunConfig, blocking=False):
+    async def do_custom_lighting(
+        entity_id: str, config: _SunConfig, blocking=False, check_override=True
+    ):
         idx = lights_id_to_idx.get(entity_id)
         if idx is None:
             _LOGGER.warning("sun_power failed due to invalid light")
@@ -387,6 +401,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "color_temp_kelvin": 2700,
             },
             blocking=blocking,
+            check_override=check_override,
         )
 
     def _set_layer(idx: int, new_value: bool):
@@ -520,8 +535,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         s = state.state
                         attrs = dict(**state.attributes)
 
-                        async def cb1(blocking=False, entity=entity, s=s, attrs=attrs, state=state):
-                            await set_entity_state(entity, s, attrs, blocking=blocking)
+                        async def cb1(
+                            blocking=False,
+                            check_override=True,
+                            entity=entity,
+                            s=s,
+                            attrs=attrs,
+                            state=state,
+                        ):
+                            await set_entity_state(
+                                entity,
+                                s,
+                                attrs,
+                                blocking=blocking,
+                                check_override=check_override,
+                            )
 
                         callbacks[entity] = cb1
                     else:
@@ -529,9 +557,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             elif action_type == f"{DOMAIN}.sun_power":
                 for entity in entities:
 
-                    async def cb2(blocking=False, entity=entity, layer=layer):
+                    async def cb2(
+                        blocking=False, check_override=True, entity=entity, layer=layer
+                    ):
                         await do_custom_lighting(
-                            entity, layer["action"][0]["data"], blocking=blocking
+                            entity,
+                            layer["action"][0]["data"],
+                            blocking=blocking,
+                            check_override=check_override,
                         )
 
                     callbacks[entity] = cb2
@@ -553,6 +586,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             device_callbacks.append(callbacks)
         for i in range(len(overrides)):
             overrides[i] = None
+            last_states[i] = None
         await update_layers()
 
     @callback

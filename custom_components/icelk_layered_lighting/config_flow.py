@@ -49,7 +49,7 @@ OPTIONS_SCHEMA = vol.Schema(
             "action_interval",
             default=60,
         ): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0, unit_of_measurement="seconds")
+            selector.NumberSelectorConfig(min=2, unit_of_measurement="seconds")
         ),
         vol.Optional(
             "switch_threshold",
