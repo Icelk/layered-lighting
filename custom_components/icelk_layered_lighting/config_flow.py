@@ -130,12 +130,12 @@ OPTIONS_SCHEMA = vol.Schema(
                         selector={"text": {}},
                     ),
                     "trigger_enable": selector.ObjectSelectorField(
-                        label="Enable layer on... (also available as action)",
+                        label="Enable layer on (also available as action)",
                         required=False,
                         selector={"trigger": {}},
                     ),
                     "trigger_disable": selector.ObjectSelectorField(
-                        label="Disable layer on... (also available as action)",
+                        label="Disable layer on (also available as action)",
                         required=False,
                         selector={"trigger": {}},
                     ),

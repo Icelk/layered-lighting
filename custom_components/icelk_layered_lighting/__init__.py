@@ -303,16 +303,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 return
         s = entity_state or hass.states.get(entity)
         if s.state == "off":
-            # special turn on logic
+            # special turn on logic (initial brightness)
             # first, try base layer. If that's dark, turn on normally
-            if len(device_callbacks) >= 1 and (cb := device_callbacks[-1].get(entity)):
-                await cb()
+            # if len(device_callbacks) >= 1 and (cb := device_callbacks[-1].get(entity)):
+            if len(device_callbacks) >= 1 and (
+                cb := next(
+                    (
+                        entities[entity]
+                        for entities in reversed(device_callbacks)
+                        if entities.get(entity)
+                    ),
+                    None,
+                )
+            ):
+                await cb(blocking=True)
                 if hass.states.get(entity).state == "off":
                     # normal turn on
                     await set_entity_state(
                         entity,
                         "on",
-                        s.attributes,
+                        {},
                         entity_state=s,
                         check_override=False,
                     )
@@ -321,7 +331,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 await set_entity_state(
                     entity,
                     "on",
-                    s.attributes,
+                    {},
                     entity_state=s,
                     check_override=False,
                 )
@@ -337,7 +347,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if idx is not None:
             set_override(idx, datetime.now())
 
-    async def do_custom_lighting(entity_id: str, config: _SunConfig):
+    async def do_custom_lighting(entity_id: str, config: _SunConfig, blocking=False):
         idx = lights_id_to_idx.get(entity_id)
         if idx is None:
             _LOGGER.warning("sun_power failed due to invalid light")
@@ -376,6 +386,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 ),
                 "color_temp_kelvin": 2700,
             },
+            blocking=blocking,
         )
 
     def _set_layer(idx: int, new_value: bool):
@@ -509,8 +520,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         s = state.state
                         attrs = dict(**state.attributes)
 
-                        async def cb1(entity=entity, s=s, attrs=attrs, state=state):
-                            await set_entity_state(entity, s, attrs)
+                        async def cb1(blocking=False, entity=entity, s=s, attrs=attrs, state=state):
+                            await set_entity_state(entity, s, attrs, blocking=blocking)
 
                         callbacks[entity] = cb1
                     else:
@@ -518,8 +529,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             elif action_type == f"{DOMAIN}.sun_power":
                 for entity in entities:
 
-                    async def cb2(entity=entity, layer=layer):
-                        await do_custom_lighting(entity, layer["action"][0]["data"])
+                    async def cb2(blocking=False, entity=entity, layer=layer):
+                        await do_custom_lighting(
+                            entity, layer["action"][0]["data"], blocking=blocking
+                        )
 
                     callbacks[entity] = cb2
             elif len(entities) == 1:
