@@ -191,7 +191,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             output["brightness_step"] = input["brightness_step"]
         elif input.get("brightness_pct") is not None:
             output["brightness_step_pct"] = input["brightness_step_pct"]
-        if input.get("effect") is not None:
+
+        # trying to extract color state. This is kinda sketchy. At least for Hue lights, effect is `off` when disabled.
+        # I don't know how it is for other brands.
+        if input.get("effect") is not None and input["effect"] != "off":
             output["effect"] = input["effect"]
         elif input.get("color_temp_kelvin") is not None:
             output["color_temp_kelvin"] = input["color_temp_kelvin"]
