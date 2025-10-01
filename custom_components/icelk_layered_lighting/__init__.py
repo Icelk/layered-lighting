@@ -4,16 +4,13 @@ from __future__ import annotations
 from asyncio import sleep
 import asyncio
 from datetime import UTC, datetime, time
-from inspect import getdoc
 import logging
 from math import pi
 from typing import TYPE_CHECKING, Callable, Literal, TypedDict
 
 from homeassistant.helpers import device_registry as dr, entity_registry
-from homeassistant.helpers.entity_platform import async_get_platforms
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import ServiceCall, State, callback
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.trigger import (
@@ -22,6 +19,7 @@ from homeassistant.helpers.trigger import (
 )
 from homeassistant.helpers.service import (
     async_call_from_config,
+    async_extract_entity_ids,
 )
 from suncalc import get_position
 
@@ -85,26 +83,34 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     def handle_name(name: str):
         @callback
-        def handle_callback(call: ServiceCall):
+        async def handle_callback(call: ServiceCall):
             if not (device := call.data.get("entry")):
                 raise Exception("invalid entry")
             if not (device := device_registry.async_get(device)):
                 raise Exception("unknown entry")
             if not (entry_data := entries.get(device.primary_config_entry)):
                 raise Exception("unknown entry")
-            entry_data[name](call)
+            await entry_data[name](call)
 
         register(name, handle_callback)
 
-    handle_name("layer_enable")
-    handle_name("layer_disable")
-    handle_name("layer_disable_all")
-    handle_name("manual_override_disable")
-    handle_name("manual_override_enable")
-    handle_name("dimming_down")
-    handle_name("dimming_up")
-    handle_name("dimming_toggle")
-    handle_name("update_internal_state")
+    def handle_names(names: list[str]):
+        for name in names:
+            handle_name(name)
+
+    handle_names(
+        [
+            "layer_enable",
+            "layer_disable",
+            "layer_disable_all",
+            "manual_override_enable",
+            "manual_override_disable",
+            "dimming_down",
+            "dimming_up",
+            "dimming_toggle",
+            "update_internal_state",
+        ]
+    )
     register("sun_power", handle_sun_power)
 
     return True
@@ -140,7 +146,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await async_call_from_config(hass, action, validate_config=True)
 
     entries[entry.entry_id] = {}
-    entry_data = entries[entry.entry_id]
+    entry_services = {}
     device_registry = dr.async_get(hass)
     device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
@@ -542,7 +548,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass, resolve_layers(), name=f"update_internal_state for {entry.title}"
         )
 
-    entry_data["update_internal_state"] = handle_update_internal_state
+    entry_services["update_internal_state"] = handle_update_internal_state
 
     await resolve_layers()
 
@@ -576,7 +582,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise Exception("layer not registered")
         entry.async_create_task(hass, set_layer(idx, True))
 
-    entry_data["layer_enable"] = handle_layer_enable
+    entry_services["layer_enable"] = handle_layer_enable
 
     @callback
     def handle_layer_disable(call: ServiceCall):
@@ -586,7 +592,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise Exception("layer not registered")
         entry.async_create_task(hass, set_layer(idx, False))
 
-    entry_data["layer_disable"] = handle_layer_disable
+    entry_services["layer_disable"] = handle_layer_disable
 
     async def layer_disable_all():
         for i in range(len(layers_enabled)):
@@ -598,33 +604,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def handle_layer_disable_all(call: ServiceCall):
         entry.async_create_task(hass, layer_disable_all())
 
-    entry_data["layer_disable_all"] = handle_layer_disable_all
+    entry_services["layer_disable_all"] = handle_layer_disable_all
 
     @callback
-    def handle_enable_manual_override(call: ServiceCall):
-        entities = call.data.get("entity_id") or []
-        indices = []
+    async def handle_enable_manual_override(call: ServiceCall):
+        entities = await async_extract_entity_ids(call)
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
             if idx is not None:
-                indices.append(idx)
                 set_override(idx, datetime.now())
-        entry.async_create_task(hass, update_lights(indices))
 
-    entry_data["manual_override_enable"] = handle_enable_manual_override
+    entry_services["manual_override_enable"] = handle_enable_manual_override
 
     @callback
-    def handle_disable_manual_override(call: ServiceCall):
-        entities = call.data.get("entity_id") or []
+    async def handle_disable_manual_override(call: ServiceCall):
+        entities = await async_extract_entity_ids(call)
         indices = []
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
             if idx is not None:
                 indices.append(idx)
                 set_override(idx, None)
-        entry.async_create_task(hass, update_lights(indices))
+        await update_lights(indices)
 
-    entry_data["manual_override_disable"] = handle_disable_manual_override
+    entry_services["manual_override_disable"] = handle_disable_manual_override
 
     dim_direction_up = [False for _ in lights]
     dimming = [False for _ in lights]
@@ -694,8 +697,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dimming_started[idx] = False
 
     @callback
-    def handle_dimming_down(call: ServiceCall):
-        entities = call.data.get("entity_id") or []
+    async def handle_dimming_down(call: ServiceCall):
+        entities = await async_extract_entity_ids(call)
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
             if idx is None:
@@ -703,31 +706,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             dimming[idx] = True
             entry.async_create_task(hass, dim(entity), f"dim {entity}")
 
-    entry_data["dimming_down"] = handle_dimming_down
+    entry_services["dimming_down"] = handle_dimming_down
 
     @callback
-    def handle_dimming_up(call: ServiceCall):
-        entities = call.data.get("entity_id") or []
+    async def handle_dimming_up(call: ServiceCall):
+        entities = await async_extract_entity_ids(call)
         for entity in entities:
             idx = lights_id_to_idx.get(entity)
             if idx is None:
                 raise Exception("light not registered")
             if dimming[idx] and not dimming_started[idx]:
                 dimming[idx] = False
-                entry.async_create_task(hass, toggle_light(entity))
+                await toggle_light(entity)
 
             dimming[idx] = False
             dimming_started[idx] = False
 
-    entry_data["dimming_up"] = handle_dimming_up
+    entry_services["dimming_up"] = handle_dimming_up
 
     @callback
-    def handle_dimming_toggle(call: ServiceCall):
-        entities = call.data.get("entity_id") or []
+    async def handle_dimming_toggle(call: ServiceCall):
+        entities = await async_extract_entity_ids(call)
         for entity in entities:
-            entry.async_create_task(hass, toggle_light(entity))
+            await toggle_light(entity)
 
-    entry_data["dimming_toggle"] = handle_dimming_toggle
+    entry_services["dimming_toggle"] = handle_dimming_toggle
 
     for idx, light in enumerate(lights):
         down = light.get("dimming_btn_down_trigger")
@@ -806,6 +809,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ),
         )
     get_data()["layer_switches"] = layer_switches
+
+    entries[entry.entry_id] = entry_services
 
     await hass.config_entries.async_forward_entry_setups(
         entry, ["sensor", "switch", "binary_sensor"]
