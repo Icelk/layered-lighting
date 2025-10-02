@@ -394,11 +394,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return
         cfg = lights[idx]
         min_brightness = (cfg.get("min_brightness") or 30) / 100 * 255
-        factor = cfg.get("factor") or 1
         pos = get_position(
             datetime.utcnow(), hass.config.longitude, hass.config.latitude
         )
-        altitude = -float(pos["altitude"]) / pi * 2
+        altitude = float(pos["altitude"]) / pi * 2
         minI = (
             float(
                 get_position(
@@ -414,15 +413,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         if config.get("absolute"):
             altitude /= abs(minI)
-        altitude *= config.get("factor") or 0.5
-        altitude += config.get("offset") or 0.7
+            altitude = (altitude + 1) * 0.5
+        altitude *= config.get("factor") or 0.2
+        altitude += config.get("offset") or 1
 
         await set_entity_state(
             entity_id,
             "on",
             {
                 "brightness": min(
-                    255, max(int(altitude * 255 * factor), min_brightness)
+                    255, max(int(altitude * 255), min_brightness)
                 ),
                 "color_temp_kelvin": 2700,
             },

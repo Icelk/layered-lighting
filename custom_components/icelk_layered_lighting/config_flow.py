@@ -53,7 +53,7 @@ OPTIONS_SCHEMA = vol.Schema(
         ),
         vol.Optional(
             "switch_threshold",
-            default=20,
+            default=0,
         ): selector.NumberSelector(
             selector.NumberSelectorConfig(min=0, max=100, unit_of_measurement="%")
         ),

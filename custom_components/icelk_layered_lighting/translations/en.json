@@ -9,7 +9,7 @@
                     "dimming_speed": "Speed of light dimming",
                     "toggle_speed": "Seconds to transition turn on / turn off lights",
                     "action_interval": "Update lights this often",
-                    "switch_threshold": "Turn on switches if the target brightness is above this",
+                    "switch_threshold": "Turn on switches if the target brightness is above this (when using sun action). Useful for if your lights are brighter in the evening, i.e. factor is negative.",
                     "manual_detect_enabled": "Try to detect changes, triggering the manual override state",
                     "lights": "Lights",
                     "layers": "Layers. Bottom is used when manually turning on lights."
@@ -26,7 +26,7 @@
                     "dimming_speed": "Speed of light dimming",
                     "toggle_speed": "Seconds to transition turn on / turn off lights",
                     "action_interval": "Update lights this often",
-                    "switch_threshold": "Turn on switches if the target brightness is above this",
+                    "switch_threshold": "Turn on switches if the target brightness is above this (when using sun action). Useful for if your lights are brighter in the evening, i.e. factor is negative.",
                     "manual_detect_enabled": "Try to detect changes, triggering the manual override state",
                     "lights": "Lights",
                     "layers": "Layers. Bottom is used when manually turning on lights."
@@ -138,16 +138,16 @@
             "description": "Don't call this ;)",
             "fields": {
                 "absolute": {
-                    "name": "Normalize value",
-                    "description": "Normalize value so midnight is 100% and midday -100% (dusk & dawn becomes 0%)"
+                    "name": "Normalize value (recommended)",
+                    "description": "Normalize value so midnight is ~0% and midday ~100%"
                 },
                 "offset": {
                     "name": "Offset",
-                    "description": "Offset to the brightness. 0.3 => 30% brighter all the time. Recommended: 0.7"
+                    "description": "Offset to the brightness. 0.3 => 30% brighter all the time. Recommended: 0.2"
                 },
                 "factor": {
                     "name": "Factor",
-                    "description": "Multiplicative factor to the brightness. Applied before the offset. Recommended: 0.5"
+                    "description": "Multiplicative factor to the brightness. Applied before the offset. Recommended: 1"
                 }
             }
         }
