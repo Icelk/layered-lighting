@@ -80,7 +80,8 @@ async def get_integration_for_entity(hass: HomeAssistant, entity_id: str) -> str
         return None
 
     entry = hass.config_entries.async_get_entry(device.primary_config_entry)
-    return entry.domain if entry else None
+    domain = entry.domain if entry else None
+    return domain if domain != DOMAIN else None
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
