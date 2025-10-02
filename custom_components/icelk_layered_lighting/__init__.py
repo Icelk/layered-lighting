@@ -396,17 +396,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.warning("sun_power failed due to invalid light")
             return
         cfg = lights[idx]
-        min_brightness = (cfg.get("min_brightness") or 30) / 100 * 255
-        pos = get_position(
-            datetime.utcnow(), hass.config.longitude, hass.config.latitude
+        min_brightness = cfg.get("min_brightness")
+        min_brightness = (
+            (min_brightness if min_brightness is not None else 30) / 100 * 255
         )
+        pos = get_position(datetime.now(), hass.config.longitude, hass.config.latitude)
         altitude = float(pos["altitude"]) / pi * 2
         minI = (
             float(
                 get_position(
-                    datetime.combine(
-                        datetime.utcnow().date(), time(hour=0), tzinfo=UTC
-                    ),
+                    datetime.combine(datetime.now().date(), time(hour=0)),
                     hass.config.longitude,
                     hass.config.latitude,
                 )["altitude"]
