@@ -152,9 +152,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     manual_override_timeout = entry.options.get("manual_override_timeout") or 0
     action_interval = entry.options.get("action_interval") or 0
     dimming_speed = entry.options.get("dimming_speed") or 40
-    dimming_delay = entry.options.get("dimming_delay") or 0.5
-    toggle_speed = entry.options.get("toggle_speed") or 0.2
-    switch_threshold = (entry.options.get("switch_threshold") or 20) / 100
+    dimming_delay = entry.options.get("dimming_delay")
+    dimming_delay = dimming_delay if dimming_delay is not None else 0.5
+    toggle_speed = entry.options.get("toggle_speed")
+    toggle_speed = toggle_speed if toggle_speed is not None else 0.2
+    switch_threshold = entry.options.get("switch_threshold")
+    switch_threshold = (switch_threshold if switch_threshold is not None else 20) / 100
     layers: list[_Layer] = entry.options.get("layers") or []
     layers_id_to_idx = {layer["name"]: idx for (idx, layer) in enumerate(layers)}
     lights: list[_Light] = entry.options.get("lights") or []
@@ -414,16 +417,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if config.get("absolute"):
             altitude /= abs(minI)
             altitude = (altitude + 1) * 0.5
-        altitude *= config.get("factor") or 0.2
-        altitude += config.get("offset") or 1
+        factor = config.get("factor")
+        offset = config.get("offset")
+        altitude *= factor if factor is not None else 1
+        altitude += offset if offset is not None else 0.2
 
         await set_entity_state(
             entity_id,
             "on",
             {
-                "brightness": min(
-                    255, max(int(altitude * 255), min_brightness)
-                ),
+                "brightness": min(255, max(int(altitude * 255), min_brightness)),
                 "color_temp_kelvin": 2700,
             },
             check_override=check_override,
@@ -636,8 +639,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_create_background_task(hass, runtime(), "update lights")
 
     def handle_layer_enable(call: ServiceCall):
-        layer = call.data.get("layer_id") or ""
-        idx = layers_id_to_idx.get(layer)
+        layer = call.data.get("layer_id")
+        idx = layers_id_to_idx.get(layer if layer is not None else "")
         if idx is None:
             raise Exception("layer not registered")
         entry.async_create_task(hass, set_layer(idx, True))
@@ -645,8 +648,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry_services["layer_enable"] = handle_layer_enable
 
     def handle_layer_disable(call: ServiceCall):
-        layer = call.data.get("layer_id") or ""
-        idx = layers_id_to_idx.get(layer)
+        layer = call.data.get("layer_id")
+        idx = layers_id_to_idx.get(layer if layer is not None else "")
         if idx is None:
             raise Exception("layer not registered")
         entry.async_create_task(hass, set_layer(idx, False))
@@ -691,7 +694,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if idx is None:
             _LOGGER.warning("invalid light idx for dimming %s", light)
             return
-        dim_speed_factor = min(lights[idx]["factor"] or 1, 1)
+        dim_speed_factor = lights[idx].get("factor")
+        dim_speed_factor = min(
+            dim_speed_factor if dim_speed_factor is not None else 1, 1
+        )
         s = hass.states.get(light)
         if s is None:
             _LOGGER.warning("invalid light entity for dimming %s", light)
