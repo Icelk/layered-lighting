@@ -266,7 +266,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         attrs,
         check_override=True,
         entity_state: State | None = None,
-        blocking=False,
         transition: float | None = None,
     ):
         match entity.split(".")[0]:
@@ -293,35 +292,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     # if last observed state != the observed state, someone's changed!
                     if last_state is not None and new_state != last_state:
                         set_override(idx, datetime.now())
-                        _LOGGER.info("detected manual override")
+                        _LOGGER.info("detected manual override", last_state, new_state)
                         return
 
                 await hass.services.async_call(
                     "light",
                     "turn_on" if state == "on" else "turn_off",
                     attributes,
-                    blocking=blocking,
+                    blocking=True,
                 )
                 if (
                     check_override
                     and manual_detect_enabled
                     and (idx := lights_id_to_idx.get(entity))
                 ):
-                    # we don't want to enable blocking every time we set a state. But we still need to wait for new state. So sleep on another task.
-                    async def check_state(sleep_s=1):
-                        await sleep(sleep_s)
-                        s = hass.states.get(entity)
-                        next_state = extract_full_state(s)
-                        last_states[idx] = {**next_state}
-
-                    if blocking:
-                        await check_state(0)
-                    else:
-                        entry.async_create_background_task(
-                            hass,
-                            check_state(),
-                            name=f"{DOMAIN}.log_state_for_manual_override.{entity}",
-                        )
+                    s = hass.states.get(entity)
+                    next_state = extract_full_state(s)
+                    last_states[idx] = {**next_state}
+                    if last_states[idx] != next_state:
+                        _LOGGER.info("set last state", next_state)
 
             case "switch":
                 brightness = attrs.get("brightness")
@@ -338,7 +327,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     else "turn_off",
                     {"entity_id": entity},
-                    blocking=blocking,
+                    blocking=True,
                 )
             case "binary_input":
                 hass.states.async_set(entity, state, {"entity_id": entity})
@@ -365,7 +354,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     None,
                 )
             ):
-                await cb(blocking=True, check_override=False)
+                await cb(check_override=False)
                 if hass.states.get(entity).state == "off":
                     # normal turn on
                     await set_entity_state(
@@ -397,7 +386,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             set_override(idx, datetime.now())
 
     async def do_custom_lighting(
-        entity_id: str, config: _SunConfig, blocking=False, check_override=True
+        entity_id: str, config: _SunConfig, check_override=True
     ):
         idx = lights_id_to_idx.get(entity_id)
         if idx is None:
@@ -437,7 +426,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 ),
                 "color_temp_kelvin": 2700,
             },
-            blocking=blocking,
             check_override=check_override,
         )
 
@@ -478,7 +466,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def update_lights(indices: list[int]):
         for idx in indices:
-            await update_light(idx, lights[idx])
+            entry.async_create_task(hass, update_light(idx, lights[idx]))
 
     async def update_light(idx: int, light: _Light):
         entity = light["entity"]
@@ -567,7 +555,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         attrs = dict(**state.attributes)
 
                         async def cb1(
-                            blocking=False,
                             check_override=True,
                             entity=entity,
                             s=s,
@@ -578,7 +565,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                                 entity,
                                 s,
                                 attrs,
-                                blocking=blocking,
                                 check_override=check_override,
                             )
 
@@ -588,13 +574,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             elif action_type == f"{DOMAIN}.sun_power":
                 for entity in entities:
 
-                    async def cb2(
-                        blocking=False, check_override=True, entity=entity, layer=layer
-                    ):
+                    async def cb2(check_override=True, entity=entity, layer=layer):
                         await do_custom_lighting(
                             entity,
                             layer["action"][0]["data"],
-                            blocking=blocking,
                             check_override=check_override,
                         )
 
@@ -755,7 +738,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "on",
                 {**s.attributes, "brightness": int(current_brightness)},
                 check_override=False,
-                blocking=True,
                 transition=interval * 2
                 if iterations == 0
                 else (now - start).total_seconds() / iterations,
