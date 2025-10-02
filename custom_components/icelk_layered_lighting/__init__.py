@@ -550,7 +550,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     entities = list(entities)
 
                 await action(layer["action"][0])
-                await sleep(3)
+                await sleep(1)
                 for entity in entities:
                     state = hass.states.get(entity)
                     if state is not None:
