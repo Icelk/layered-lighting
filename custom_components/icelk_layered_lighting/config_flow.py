@@ -78,7 +78,7 @@ OPTIONS_SCHEMA = vol.Schema(
                         },
                     ),
                     "factor": selector.ObjectSelectorField(
-                        label="Light brightness factor (for sun power action)",
+                        label="Light brightness factor (for sun power action) (also controls dim speed)",
                         required=False,
                         selector={
                             "number": {

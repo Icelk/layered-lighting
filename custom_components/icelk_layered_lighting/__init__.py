@@ -691,6 +691,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if idx is None:
             _LOGGER.warning("invalid light idx for dimming %s", light)
             return
+        dim_speed_factor = min(lights[idx]["factor"] or 1, 1)
         s = hass.states.get(light)
         if s is None:
             _LOGGER.warning("invalid light entity for dimming %s", light)
@@ -724,6 +725,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 + (1 if dim_direction_up[idx] else -1)
                 * (now - start).total_seconds()
                 * dimming_speed
+                * dim_speed_factor
                 / 100
                 * 255
             )
