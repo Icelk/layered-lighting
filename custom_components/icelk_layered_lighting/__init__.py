@@ -8,7 +8,7 @@ import logging
 from math import pi
 from typing import TYPE_CHECKING, Callable, Literal, TypedDict
 
-#from homeassistant.exceptions import ConfigEntryNotReady
+# from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry
 
 from homeassistant.config_entries import ConfigEntry
@@ -465,14 +465,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 sensor.own_update(layer)
 
     def light_get_layer(entity_id: str):
-        for idx, layer in enumerate(layers):
-            if not layers_enabled[idx]:
-                continue
-            if (
-                layer.get("lights") is None
-                or entity_id in layer["lights"]
-                or len(layer["lights"]) == 0
-            ):
+        for idx in range(len(layers)):
+            if layers_enabled[idx] and device_callbacks[idx].get(entity_id):
                 return idx
 
         return -1
