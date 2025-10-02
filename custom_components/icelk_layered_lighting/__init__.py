@@ -317,13 +317,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             case "switch":
                 brightness = attrs.get("brightness")
+                idx = lights_id_to_idx.get(entity)
+                brightness_factor = (
+                    (f if (f := lights[idx].get("factor")) else 1)
+                    if idx is not None
+                    else 1
+                )
                 await hass.services.async_call(
                     "switch",
                     "turn_on"
                     if (
                         state == "on"
                         and (
-                            float(brightness) / 255 >= switch_threshold
+                            float(brightness * brightness_factor) / 255
+                            >= switch_threshold
                             if brightness
                             else True
                         )
@@ -358,7 +365,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
             ):
                 await cb(check_override=False)
-                if hass.states.get(entity).state == "off":
+                s = hass.states.get(entity).state
+                if s == "off":
                     # normal turn on
                     await set_entity_state(
                         entity,
@@ -416,16 +424,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if config.get("absolute"):
             altitude /= abs(minI)
             altitude = (altitude + 1) * 0.5
-        factor = config.get("factor")
-        offset = config.get("offset")
-        altitude *= factor if factor is not None else 1
-        altitude += offset if offset is not None else 0.2
+        factor = f if (f := config.get("factor")) is not None else 1
+        offset = v if (v := config.get("offset")) is not None else 0.2
+
+        brightness_factor = f if (f := cfg.get("factor")) is not None else 1
 
         await set_entity_state(
             entity_id,
             "on",
             {
-                "brightness": min(255, max(int(altitude * 255), min_brightness)),
+                "brightness": min(
+                    255, max(int(altitude * brightness_factor * 255), min_brightness)
+                ),
                 "color_temp_kelvin": 2700,
             },
             check_override=check_override,
