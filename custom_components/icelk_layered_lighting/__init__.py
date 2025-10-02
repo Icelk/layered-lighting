@@ -111,6 +111,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 raise Exception("unknown entry")
             if not (entry_data := entries.get(device.primary_config_entry)):
                 raise Exception("unknown entry")
+            if entry_data[name] is None:
+                raise Exception(
+                    f"somebody who developed {DOMAIN} messed up and didn't register {name}"
+                )
             await entry_data[name](call)
 
         register(name, handle_callback)
@@ -665,14 +669,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry_services["layer_disable"] = handle_layer_disable
 
-    async def layer_disable_all():
+    async def handle_layer_disable_all(_call: ServiceCall):
         for i in range(len(layers_enabled)):
             await set_layer(i, False, realize_updates=False)
 
         await update_layers()
-
-    def handle_layer_disable_all(call: ServiceCall):
-        entry.async_create_task(hass, layer_disable_all())
 
     entry_services["layer_disable_all"] = handle_layer_disable_all
 
