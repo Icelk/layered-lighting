@@ -3,7 +3,7 @@
 from __future__ import annotations
 from asyncio import sleep
 import asyncio
-from datetime import UTC, datetime, time
+from datetime import datetime, time
 import logging
 from math import pi
 from typing import TYPE_CHECKING, Callable, Literal, TypedDict
@@ -224,7 +224,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     layers_enabled = [False for _ in layers]
     overrides: list[None | datetime] = [None for _ in lights]
-    last_states: list[None | dict[str, int | str]] = [None for _ in lights]
+    last_states: list[None | dict[str, int | float | str]] = [None for _ in lights]
 
     def extract_attributes(input, output={}):
         if input.get("brightness") is not None:
@@ -256,10 +256,58 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             output["color_name"] = input["color_name"]
         return output
 
-    def extract_full_state(state: State) -> dict[str, int | str]:
-        s = extract_attributes(state.attributes)
-        s["state"] = state.state
-        return s
+    def extract_full_state(state: State) -> dict[str, float | int | str]:
+        if state.state != "on":
+            return {"state": state.state}
+        else:
+            s = extract_attributes(state.attributes)
+            s["state"] = state.state
+            return s
+
+    def full_states_different(
+        old: dict[str, str | float | int | list[float]],
+        new: dict[str, str | float | int | list[float]],
+    ) -> bool:
+        numeric_min_diff = {
+            "brightness": 3,
+            "brightness_pct": 1,
+            "color_temp_kelvin": 10,
+            "color_temp": 5,
+            "_arr_hs_color": 1,
+            "_arr_rgb_color": 3,
+            "_arr_rgbw_color": 3,
+            "_arr_rgbww_color": 3,
+            "_arr_xy_color": 0.01,
+        }
+        if old["state"] == "unavailable":
+            return False
+        if new.get("state") != old.get("state"):
+            return True
+
+        # Asymmetric, which is fine because if we get new props in `new` that's fine and we don't have to trigger manual override
+        for key in old:
+            if new.get(key) is None:
+                return True
+            if (numeric_min := numeric_min_diff.get(key)) is not None:
+                x = float(old[key])
+                y = float(new[key])
+                if abs(x - y) > numeric_min:
+                    return True
+            elif (
+                (numeric_min := numeric_min_diff.get(f"_arr_{key}")) is not None
+                and isinstance(old[key], list)
+                and isinstance(new[key], list)
+            ):
+                for x, y in zip(old[key], new[key]):
+                    x = float(x)
+                    y = float(y)
+                    if abs(x - y) > numeric_min:
+                        return True
+            else:
+                if old[key] != new[key]:
+                    return True
+
+        return False
 
     async def set_entity_state(
         entity: str,
@@ -291,9 +339,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     new_state = extract_full_state(entity_state)
 
                     # if last observed state != the observed state, someone's changed!
-                    if last_state is not None and new_state != last_state:
+                    if last_state is not None and full_states_different(
+                        last_state, new_state
+                    ):
                         set_override(idx, datetime.now())
-                        _LOGGER.info("detected manual override", last_state, new_state)
+                        _LOGGER.warning(
+                            "detected manual override", entity, last_state, new_state
+                        )
                         return
 
                 await hass.services.async_call(
@@ -311,7 +363,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     next_state = extract_full_state(s)
                     last_states[idx] = {**next_state}
                     if last_states[idx] != next_state:
-                        _LOGGER.info("set last state", next_state)
+                        _LOGGER.warning(entity, "set last state", next_state)
 
             case "switch":
                 brightness = attrs.get("brightness")
