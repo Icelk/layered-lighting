@@ -145,19 +145,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Layered Lighting from a config entry."""
 
-    manual_detect_enabled = entry.options.get("manual_detect_enabled")
     manual_detect_enabled = (
-        manual_detect_enabled if manual_detect_enabled is not None else True
+        f if (f := entry.options.get("manual_detect_enabled")) is not None else True
     )
     manual_override_timeout = entry.options.get("manual_override_timeout") or 0
     action_interval = entry.options.get("action_interval") or 0
     dimming_speed = entry.options.get("dimming_speed") or 40
-    dimming_delay = entry.options.get("dimming_delay")
-    dimming_delay = dimming_delay if dimming_delay is not None else 0.5
-    toggle_speed = entry.options.get("toggle_speed")
-    toggle_speed = toggle_speed if toggle_speed is not None else 0.2
-    switch_threshold = entry.options.get("switch_threshold")
-    switch_threshold = (switch_threshold if switch_threshold is not None else 20) / 100
+    dimming_delay = v if (v := entry.options.get("dimming_delay")) is not None else 0.5
+    toggle_speed = v if (v := entry.options.get("toggle_speed")) is not None else 0.2
+    switch_threshold = (
+        v if (v := entry.options.get("switch_threshold")) is not None else 20
+    ) / 100
     layers: list[_Layer] = entry.options.get("layers") or []
     layers_id_to_idx = {layer["name"]: idx for (idx, layer) in enumerate(layers)}
     lights: list[_Light] = entry.options.get("lights") or []
@@ -213,7 +211,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     tries = 0
     for light in lights:
         while True:
-            if tries > 30:
+            if tries > 120:
                 _LOGGER.error("lights were not available")
                 return False
             if hass.states.get(light["entity"]) is None:
@@ -404,9 +402,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.warning("sun_power failed due to invalid light")
             return
         cfg = lights[idx]
-        min_brightness = cfg.get("min_brightness")
         min_brightness = (
-            (min_brightness if min_brightness is not None else 30) / 100 * 255
+            (v if (v := cfg.get("min_brightness")) is not None else 30) / 100 * 255
         )
         pos = get_position(datetime.now(), hass.config.longitude, hass.config.latitude)
         altitude = float(pos["altitude"]) / pi * 2
@@ -703,9 +700,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if idx is None:
             _LOGGER.warning("invalid light idx for dimming %s", light)
             return
-        dim_speed_factor = lights[idx].get("factor")
         dim_speed_factor = min(
-            dim_speed_factor if dim_speed_factor is not None else 1, 1
+            v if (v := lights[idx].get("factor")) is not None else 1, 1
         )
         s = hass.states.get(light)
         if s is None:
