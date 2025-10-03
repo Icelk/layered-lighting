@@ -734,11 +734,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         resolving_layers = False
         await update_layers()
 
-    @callback
-    def handle_update_internal_state(call: ServiceCall):
-        entry.async_create_background_task(
-            hass, resolve_layers(), name=f"update_internal_state for {entry.title}"
-        )
+    async def handle_update_internal_state(_call: ServiceCall):
+        await resolve_layers()
 
     entry_services["update_internal_state"] = handle_update_internal_state
 
@@ -767,21 +764,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_create_background_task(hass, runtime(), "update lights")
 
-    def handle_layer_enable(call: ServiceCall):
+    async def handle_layer_enable(call: ServiceCall):
         layer = call.data.get("layer_id")
         idx = layers_id_to_idx.get(layer if layer is not None else "")
         if idx is None:
             raise Exception("layer not registered")
-        entry.async_create_task(hass, set_layer(idx, True))
+        await set_layer(idx, True)
 
     entry_services["layer_enable"] = handle_layer_enable
 
-    def handle_layer_disable(call: ServiceCall):
+    async def handle_layer_disable(call: ServiceCall):
         layer = call.data.get("layer_id")
         idx = layers_id_to_idx.get(layer if layer is not None else "")
         if idx is None:
             raise Exception("layer not registered")
-        entry.async_create_task(hass, set_layer(idx, False))
+        await set_layer(idx, False)
 
     entry_services["layer_disable"] = handle_layer_disable
 
