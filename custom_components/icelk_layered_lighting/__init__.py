@@ -327,7 +327,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         attrs,
         check_override=True,
         entity_state: State | None = None,
-        transition: float | None = None,
         use_switch_threshold=False,
     ):
         match entity.split(".")[0]:
@@ -336,7 +335,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     attrs = {}
 
                 attrs["entity_id"] = entity
-                attrs["transition"] = toggle_speed if transition is None else transition
+                if attrs.get("transition") is not None:
+                    attrs["transition"] = toggle_speed
 
                 if (
                     check_override
@@ -870,11 +870,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await set_entity_state(
                 light,
                 "on",
-                {"brightness": int(current_brightness)},
+                {
+                    "brightness": int(current_brightness),
+                    "transition": interval * 2
+                    if iterations == 0
+                    else (now - start).total_seconds() / iterations,
+                },
                 check_override=False,
-                transition=interval * 2
-                if iterations == 0
-                else (now - start).total_seconds() / iterations,
             )
             if not dimming[idx]:
                 break
