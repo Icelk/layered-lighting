@@ -7,6 +7,7 @@
                     "name": "Name",
                     "manual_override_timeout": "Reset manual override in x minutes",
                     "dimming_speed": "Speed of light dimming",
+                    "dimming_delay": "Time before dimming starts after pressing button",
                     "toggle_speed": "Seconds to transition turn on / turn off lights",
                     "action_interval": "Update lights this often",
                     "switch_threshold": "Turn on switches if the target brightness is above this (when using sun action). Useful for if your lights are brighter in the evening, i.e. factor is negative.",
@@ -24,6 +25,7 @@
                 "data": {
                     "manual_override_timeout": "Reset manual override in x minutes",
                     "dimming_speed": "Speed of light dimming",
+                    "dimming_delay": "Time before dimming starts after pressing button",
                     "toggle_speed": "Seconds to transition turn on / turn off lights",
                     "action_interval": "Update lights this often",
                     "switch_threshold": "Turn on switches if the target brightness is above this (when using sun action). Useful for if your lights are brighter in the evening, i.e. factor is negative.",

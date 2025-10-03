@@ -96,7 +96,7 @@ OPTIONS_SCHEMA = vol.Schema(
                             "number": {
                                 "min": 1,
                                 "max": 100,
-                                "step": "any",
+                                "step": 1,
                                 "default": 30,
                                 "unit_of_measurement": "%",
                             }
