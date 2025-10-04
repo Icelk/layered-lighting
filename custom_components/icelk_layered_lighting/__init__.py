@@ -486,7 +486,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     s = hass.states.get(entity)
                     next_state = {"state": s.state}
                     last_states[idx] = {**next_state}
-            case "binary_input":
+            case "input_boolean":
                 hass.states.async_set(entity, state, {"entity_id": entity})
 
     async def toggle_light(entity: str):
@@ -1074,28 +1074,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             asyncio.run_coroutine_threadsafe(update_light(idx), hass.loop)
 
         entity = er.async_get(light["entity"])
-        if entity and entity.device_id:
-            light_dev = device_registry.async_get(entity.device_id)
-            device_info = dr.DeviceInfo(
-                identifiers=light_dev.identifiers,
-                name=light_dev.name,
-                connections=light_dev.connections,
-            )
-            layer_sensors.append(
-                (
-                    device_info,
-                    f"{DOMAIN}.layer_sensor.{light['entity']}",
+        if entity:
+            if entity.device_id:
+                light_dev = device_registry.async_get(entity.device_id)
+                device_info = dr.DeviceInfo(
+                    identifiers=light_dev.identifiers,
+                    name=light_dev.name,
+                    connections=light_dev.connections,
                 )
-            )
-            override_switches.append(
-                (
-                    device_info,
-                    f"{DOMAIN}.override_sensor.{light['entity']}",
-                    override_cb,
+                layer_sensors.append(
+                    (
+                        device_info,
+                        f"{DOMAIN}.layer_sensor.{light['entity']}",
+                    )
                 )
-            )
+                override_switches.append(
+                    (
+                        device_info,
+                        f"{DOMAIN}.override_sensor.{light['entity']}",
+                        override_cb,
+                    )
+                )
+            else:
+                device_info = None
+                layer_sensors.append(
+                    (
+                        device_info,
+                        f"{DOMAIN}.layer_sensor.{light['entity']}",
+                        light["entity"],
+                    )
+                )
+                override_switches.append(
+                    (
+                        device_info,
+                        f"{DOMAIN}.override_sensor.{light['entity']}",
+                        override_cb,
+                        light["entity"],
+                    )
+                )
         else:
-            _LOGGER.warning("no device found for entity %s", light["entity"])
             layer_sensors.append(None)
             override_switches.append(None)
     get_data()["layer_sensors"] = layer_sensors

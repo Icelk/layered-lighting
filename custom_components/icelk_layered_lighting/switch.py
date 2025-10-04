@@ -19,7 +19,7 @@ async def async_setup_entry(hass, entry, async_add_entities: AddEntitiesCallback
     data["layer_switches_data"] = switches
 
     definitions = data["override_switches"]
-    
+
     switches = [
         ManualOverrideSwitch(*definition) if definition else None
         for definition in definitions
@@ -59,6 +59,7 @@ class LayerActiveSwitch(SwitchEntity):
         self.is_on = False
         self._callback(False)
 
+
 class ManualOverrideSwitch(SwitchEntity):
     """If the light is manually overridden."""
 
@@ -68,12 +69,14 @@ class ManualOverrideSwitch(SwitchEntity):
     _attr_name = "Manually overridden"
 
     def __init__(
-        self, device: DeviceInfo, id: str, callback: Callable
+        self, device: DeviceInfo, id: str, callback: Callable, name: str | None = None
     ) -> None:
         """Init layer sensor and attach to device."""
         self._attr_device_info = device
         self._attr_unique_id = id
         self._callback = callback
+        if name is not None:
+            self._attr_name = f"{self._attr_name} for {name}"
 
     def own_update(self, new_value: bool):
         """Update with new value."""

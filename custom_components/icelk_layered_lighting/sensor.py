@@ -13,7 +13,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     definitions = data["layer_sensors"]
 
     sensors = [
-        ActiveLayerSensor(definition[0], definition[1]) if definition else None
+        ActiveLayerSensor(*definition) if definition else None
         for definition in definitions
     ]
     async_add_entities([sensor for sensor in sensors if sensor])
@@ -28,10 +28,12 @@ class ActiveLayerSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Active light layer"
 
-    def __init__(self, device: DeviceInfo, id: str) -> None:
+    def __init__(self, device: DeviceInfo, id: str, name: str | None = None) -> None:
         """Init layer sensor and attach to device."""
         self._attr_device_info = device
         self._attr_unique_id = id
+        if name is not None:
+            self._attr_name = f"{self._attr_name} for {name}"
 
     def own_update(self, new_value: str):
         """Update with new value."""
