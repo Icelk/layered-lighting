@@ -133,6 +133,11 @@ OPTIONS_SCHEMA = vol.Schema(
                         required=True,
                         selector={"text": {}},
                     ),
+                    "enable_if": selector.ObjectSelectorField(
+                        label="Enable layer if entity has state (triggers below are automatically populated) (State, Numeric state, and Time are supported) (if you provide multiple, all of the conditions need to be fulfilled)",
+                        required=False,
+                        selector={"condition": {}},
+                    ),
                     "trigger_enable": selector.ObjectSelectorField(
                         label="Enable layer on (also available as action)",
                         required=False,

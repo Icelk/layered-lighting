@@ -19,6 +19,10 @@ from homeassistant.helpers.trigger import (
     async_initialize_triggers,
     async_validate_trigger_config,
 )
+from homeassistant.helpers.condition import (
+    async_from_config,
+    async_validate_conditions_config,
+)
 from homeassistant.helpers.service import (
     async_call_from_config,
     async_extract_entity_ids,
@@ -601,7 +605,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def set_layer(idx: int, new_value: bool, realize_updates=True):
         should_update = layers_enabled[idx] != new_value
-        _set_layer(idx, new_value)
+        if should_update:
+            _set_layer(idx, new_value)
         if should_update and realize_updates:
             await update_layers()
 
@@ -818,6 +823,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for idx, layer in enumerate(layers):
         trigger_enable = layer.get("trigger_enable")
         trigger_disable = layer.get("trigger_disable")
+        enable_if = layer.get("enable_if")
 
         async def enable_layer(e=None, ctx=None, idx=idx):
             await set_layer(idx, True)
@@ -829,6 +835,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await add_trigger(trigger_enable, enable_layer)
         if trigger_disable:
             await add_trigger(trigger_disable, disable_layer)
+        if enable_if:
+            transformed_conditions = await async_validate_conditions_config(
+                hass, enable_if
+            )
+            transformed_conditions = _transform_conditions(transformed_conditions)
+
+            async def debounced_check_conditions(e=None, ctx=None, layer=layer):
+                await do_debounce(
+                    hass,
+                    entry,
+                    f"check states for layer {layer['name']}",
+                    1,
+                    check_conditions(),
+                )
+
+            async def check_conditions(e=None, ctx=None, idx=idx, enable_if=enable_if):
+                all_true = True if len(transformed_conditions) > 0 else False
+                for condition in transformed_conditions:
+                    check = await async_from_config(hass, condition)
+                    result = check(hass, {})
+                    if not result:
+                        all_true = False
+                        break
+
+                await set_layer(idx, all_true)
+
+            triggers = []
+            for condition in enable_if:
+                _condition_to_triggers(condition, triggers)
+            await add_trigger(triggers, debounced_check_conditions)
 
     async def runtime():
         while True:
@@ -1138,4 +1174,99 @@ def _transform_triggers(triggers):
         if t:
             trigger["platform"] = t
             del trigger["trigger"]
+    return triggers
+
+
+def _transform_conditions(conditions):
+    for condition in conditions:
+        if e := condition.get("before"):
+            try:
+                t = time.fromisoformat(e)
+                condition["before"] = t
+            except Exception:
+                pass
+        if e := condition.get("after"):
+            try:
+                t = time.fromisoformat(e)
+                condition["after"] = t
+            except Exception:
+                pass
+    return conditions
+
+
+def _condition_to_triggers(condition, triggers=[]):
+    match condition["condition"]:
+        case "time":
+            if (before := condition.get("before")) is not None:
+                trigger = {"platform": "time", "at": before}
+                if wd := condition.get("weekday"):
+                    trigger["weekday"] = wd
+                triggers.append(trigger)
+
+            if (after := condition.get("after")) is not None:
+                trigger = {"platform": "time", "at": after}
+                if wd := condition.get("weekday"):
+                    trigger["weekday"] = wd
+                triggers.append(trigger)
+        case "state":
+            trigger = {
+                "platform": "state",
+                "entity_id": [condition["entity_id"]],
+                "to": condition["state"],
+            }
+            if attr := condition.get("attribute"):
+                trigger["attribute"] = attr
+            if f := condition.get("for"):
+                trigger["for"] = f
+
+            triggers.append(trigger)
+
+            trigger = {
+                "platform": "state",
+                "entity_id": [condition["entity_id"]],
+                "from": condition["state"],
+            }
+            if attr := condition.get("attribute"):
+                trigger["attribute"] = attr
+
+            triggers.append(trigger)
+        case "numeric_state":
+            trigger = {
+                "platform": "numeric_state",
+                "entity_id": [condition["entity_id"]],
+            }
+            if above := condition.get("above"):
+                trigger["above"] = above
+            if below := condition.get("below"):
+                trigger["below"] = below
+            if attr := condition.get("attribute"):
+                trigger["attribute"] = attr
+            if vt := condition.get("value_template"):
+                trigger["value_template"] = vt
+
+            if condition.get("below") is not None or condition.get("above") is not None:
+                triggers.append(trigger)
+            if below := condition.get("below"):
+                trigger = {
+                    "platform": "numeric_state",
+                    "entity_id": [condition["entity_id"]],
+                    "above": below,
+                }
+                if attr := condition.get("attribute"):
+                    trigger["attribute"] = attr
+                if vt := condition.get("value_template"):
+                    trigger["value_template"] = vt
+                triggers.append(trigger)
+            if above := condition.get("above"):
+                trigger = {
+                    "platform": "numeric_state",
+                    "entity_id": [condition["entity_id"]],
+                    "below": above,
+                }
+                if attr := condition.get("attribute"):
+                    trigger["attribute"] = attr
+                if vt := condition.get("value_template"):
+                    trigger["value_template"] = vt
+                triggers.append(trigger)
+
     return triggers
