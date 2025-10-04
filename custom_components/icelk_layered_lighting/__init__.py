@@ -81,8 +81,8 @@ async def do_debounce(
         global debounce
         await sleep(t)
         if debounce.get(id) == rand:
-            await cb
             del debounce[id]
+            await cb
         else:
             cb.close()
 
@@ -819,7 +819,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     hass,
                     entry,
                     f"check states for layer {layer['name']}",
-                    1,
+                    0.2,
                     check_conditions(),
                 )
 
