@@ -374,7 +374,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     attrs = {}
 
                 attrs["entity_id"] = entity
-                if attrs.get("transition") is not None:
+                if attrs.get("transition") is None:
                     attrs["transition"] = toggle_speed
 
                 if (
