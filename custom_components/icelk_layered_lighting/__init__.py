@@ -195,7 +195,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for integration in other_integrations:
         # if integration not in hass.config.components:
         #     raise ConfigEntryNotReady(f"integration {integration} not ready")
-        await async_wait_component(hass, integration)
+        # await async_wait_component(hass, integration)
+        pass
 
     def get_data():
         data = raw_get_data(hass, entry)
@@ -814,16 +815,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             transformed_conditions = _transform_conditions(transformed_conditions)
 
-            async def debounced_check_conditions(e=None, ctx=None, layer=layer):
-                await do_debounce(
-                    hass,
-                    entry,
-                    f"check states for layer {layer['name']}",
-                    0.2,
-                    check_conditions(),
-                )
-
-            async def check_conditions(e=None, ctx=None, idx=idx, enable_if=enable_if):
+            async def check_conditions(e=None, ctx=None, idx=idx, transformed_conditions=transformed_conditions):
                 all_true = True if len(transformed_conditions) > 0 else False
                 for condition in transformed_conditions:
                     check = await async_from_config(hass, condition)
@@ -833,6 +825,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         break
 
                 await set_layer(idx, all_true)
+
+            async def debounced_check_conditions(e=None, ctx=None, layer=layer, check_conditions=check_conditions):
+                await do_debounce(
+                    hass,
+                    entry,
+                    f"check states for layer {layer['name']}",
+                    0.2,
+                    check_conditions(),
+                )
+
 
             triggers = []
             for condition in enable_if:

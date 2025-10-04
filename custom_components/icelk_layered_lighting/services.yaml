@@ -82,6 +82,17 @@ layer_disable_all:
       selector:
         config_entry:
           integration: icelk_layered_lighting
+layer_toggle:
+  fields:
+    entry:
+      required: true
+      selector:
+        config_entry:
+          integration: icelk_layered_lighting
+    layer_id:
+      required: true
+      selector:
+        text:
 
 update_internal_state:
   fields:
