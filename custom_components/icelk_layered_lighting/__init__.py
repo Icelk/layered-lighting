@@ -250,7 +250,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     tries = 0
     for light in lights:
         while True:
-            if tries > 120:
+            if tries > 600:
                 _LOGGER.error("lights were not available")
                 return False
             if (
