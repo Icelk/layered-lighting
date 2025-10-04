@@ -6,9 +6,8 @@ manual_override_enable:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
 
 manual_override_disable:
   target:
@@ -18,9 +17,8 @@ manual_override_disable:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
 
 dimming_down:
   target:
@@ -30,9 +28,8 @@ dimming_down:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
 
 dimming_up:
   target:
@@ -42,9 +39,8 @@ dimming_up:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
 
 dimming_toggle:
   target:
@@ -54,18 +50,16 @@ dimming_toggle:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
 
 layer_enable:
   fields:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
     layer_id:
       required: true
       selector:
@@ -75,9 +69,8 @@ layer_disable:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
     layer_id:
       required: true
       selector:
@@ -87,18 +80,16 @@ layer_disable_all:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
 
 update_internal_state:
   fields:
     entry:
       required: true
       selector:
-        device:
-          filter:
-            integration: icelk_layered_lighting
+        config_entry:
+          integration: icelk_layered_lighting
 
 sun_power:
   fields:

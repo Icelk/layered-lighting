@@ -96,7 +96,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     device_registry = dr.async_get(hass)
 
     @callback
-    def handle_sun_power(call: ServiceCall):
+    def handle_sun_power(_call: ServiceCall):
         raise Exception("uncallable")
 
     def register(name: str, callback: Callable):
@@ -106,11 +106,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     def handle_name(name: str):
         @callback
         async def handle_callback(call: ServiceCall):
-            if not (device := call.data.get("entry")):
+            if not (entry_config := call.data.get("entry")):
                 raise Exception("invalid entry")
-            if not (device := device_registry.async_get(device)):
-                raise Exception("unknown entry")
-            if not (entry_data := entries.get(device.primary_config_entry)):
+            if not (entry_data := entries.get(entry_config)):
                 raise Exception("unknown entry")
             if entry_data[name] is None:
                 raise Exception(
