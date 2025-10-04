@@ -127,6 +127,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             "layer_enable",
             "layer_disable",
             "layer_disable_all",
+            "layer_toggle",
             "manual_override_enable",
             "manual_override_disable",
             "dimming_down",
@@ -780,6 +781,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await set_layer(idx, False)
 
     entry_services["layer_disable"] = handle_layer_disable
+
+    async def handle_layer_toggle(call: ServiceCall):
+        layer = call.data.get("layer_id")
+        idx = layers_id_to_idx.get(layer if layer is not None else "")
+        if idx is None:
+            raise Exception("layer not registered")
+        await set_layer(idx, not layers_enabled[idx])
+
+    entry_services["layer_toggle"] = handle_layer_toggle
 
     async def handle_layer_disable_all(_call: ServiceCall):
         for i in range(len(layers_enabled)):

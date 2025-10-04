@@ -11,7 +11,7 @@
                     "toggle_speed": "Seconds to transition turn on / turn off lights",
                     "action_interval": "Update lights this often",
                     "switch_threshold": "Turn on switches if the target brightness is above this (when using sun action). Useful for if your lights are brighter in the evening, i.e. factor is negative.",
-                    "manual_detect_enabled": "Try to detect changes, triggering the manual override state",
+                    "manual_detect_enabled": "Try to detect changes from other parts of HASS, triggering the manual override state. Recommended.",
                     "lights": "Lights",
                     "layers": "Layers. Bottom is used when manually turning on lights."
                 }
@@ -29,7 +29,7 @@
                     "toggle_speed": "Seconds to transition turn on / turn off lights",
                     "action_interval": "Update lights this often",
                     "switch_threshold": "Turn on switches if the target brightness is above this (when using sun action). Useful for if your lights are brighter in the evening, i.e. factor is negative.",
-                    "manual_detect_enabled": "Try to detect changes, triggering the manual override state",
+                    "manual_detect_enabled": "Try to detect changes from other parts of HASS, triggering the manual override state. Recommended.",
                     "lights": "Lights",
                     "layers": "Layers. Bottom is used when manually turning on lights."
                 }
