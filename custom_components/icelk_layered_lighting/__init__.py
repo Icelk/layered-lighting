@@ -9,7 +9,6 @@ from math import pi
 from random import random
 from typing import TYPE_CHECKING, Callable, Coroutine, Literal, TypedDict
 
-# from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry
 
 from homeassistant.config_entries import ConfigEntry
@@ -27,7 +26,6 @@ from homeassistant.helpers.service import (
     async_call_from_config,
     async_extract_entity_ids,
 )
-from homeassistant.setup import async_wait_component
 from suncalc import get_position
 
 if TYPE_CHECKING:
@@ -174,7 +172,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         f if (f := entry.options.get("manual_detect_enabled")) is not None else True
     )
     manual_override_timeout = entry.options.get("manual_override_timeout") or 0
-    action_interval = entry.options.get("action_interval") or 0
+    action_interval = entry.options.get("action_interval") or 60
     dimming_speed = entry.options.get("dimming_speed") or 40
     dimming_delay = v if (v := entry.options.get("dimming_delay")) is not None else 0.5
     toggle_speed = v if (v := entry.options.get("toggle_speed")) is not None else 0.2
@@ -184,19 +182,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     layers: list[_Layer] = entry.options.get("layers") or []
     layers_id_to_idx = {layer["name"]: idx for (idx, layer) in enumerate(layers)}
     lights: list[_Light] = entry.options.get("lights") or []
+    lights_loaded: list[bool] = [False for _ in lights]
     lights_id_to_idx = {light["entity"]: idx for (idx, light) in enumerate(lights)}
-
-    other_integrations = [
-        await get_integration_for_entity(hass, light["entity"]) for light in lights
-    ]
-    other_integrations = set(
-        integration for integration in other_integrations if integration
-    )
-    for integration in other_integrations:
-        # if integration not in hass.config.components:
-        #     raise ConfigEntryNotReady(f"integration {integration} not ready")
-        # await async_wait_component(hass, integration)
-        pass
 
     def get_data():
         data = raw_get_data(hass, entry)
@@ -207,7 +194,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return data
 
     # support multiple triggers
-    async def add_trigger(trigger, callback):
+    async def add_triggers(trigger, callback):
         triggers = await async_validate_trigger_config(
             hass, _transform_triggers(trigger)
         )
@@ -246,20 +233,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         identifiers={(DOMAIN, entry.entry_id)},
     )
     get_data()["device"] = device
-
-    tries = 0
-    for light in lights:
-        while True:
-            if tries > 600:
-                _LOGGER.error("lights were not available")
-                return False
-            if (
-                s := hass.states.get(light["entity"])
-            ) is None or s.state == "unavailable":
-                await sleep(1)
-                tries += 1
-            else:
-                break
 
     device_callbacks: list[dict[str, Callable]] = []
 
@@ -627,7 +600,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     def light_get_layer(entity_id: str):
         for idx in range(len(layers)):
-            if layers_enabled[idx] and device_callbacks[idx].get(entity_id):
+            if (
+                layers_enabled[idx]
+                and len(device_callbacks) > idx
+                and device_callbacks[idx].get(entity_id)
+            ):
                 return idx
 
         return -1
@@ -672,17 +649,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
 
     async def update_layers():
-        await update_lights([i for i in range(len(lights))])
+        await update_lights(
+            [idx for idx, enabled in enumerate(lights_loaded) if enabled]
+        )
 
     resolving_layers = False
+    should_re_resolve = False
 
     async def resolve_layers():
         nonlocal resolving_layers
+        nonlocal should_re_resolve
 
         _LOGGER.info("Resolve layers")
 
         if resolving_layers:
+            should_re_resolve = True
             return
+
+        for idx, light in enumerate(lights):
+            lights_loaded[idx] = (
+                s := hass.states.get(light["entity"])
+            ) is not None and s.state != "unavailable"
+
+        ll = set([light["entity"] for idx, light in enumerate(lights) if lights_loaded[idx]])
 
         resolving_layers = True
         device_callbacks.clear()
@@ -697,9 +686,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entities = (
                 local_lights if local_lights else [light["entity"] for light in lights]
             )
+            entities = list(set(entities).intersection(ll))
             if layer.get("action") is None:
                 for entity in entities:
                     callbacks[entity] = lambda: ()
+                device_callbacks.append(callbacks)
+                continue
 
             if len(layer["action"]) != 1:
                 for entity in entities:
@@ -708,6 +700,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "invalid action in layer %s. Only one action is allowed.",
                     layer["name"],
                 )
+                device_callbacks.append(callbacks)
+                continue
 
             action_type = layer["action"][0]["action"]
             if action_type == "scene.turn_on":
@@ -727,6 +721,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         light_entities = s.attributes["entity_id"]
                         entities = entities.union(light_entities)
                     entities = list(entities)
+
+                entities = list(set(entities).intersection(ll))
 
                 await action(layer["action"][0])
                 await sleep(2 + len(entities) * 0.1)
@@ -779,6 +775,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
 
             device_callbacks.append(callbacks)
+
         await sleep(1)
         for i in range(len(overrides)):
             overrides[i] = None
@@ -787,10 +784,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         resolving_layers = False
         await update_layers()
 
+        if should_re_resolve:
+            _LOGGER.info(
+                "Re-resolving layers because we got requested to do so when we ran last."
+            )
+            should_re_resolve = False
+            await resolve_layers()
+
     async def handle_update_internal_state(_call: ServiceCall):
         await resolve_layers()
 
     entry_services["update_internal_state"] = handle_update_internal_state
+
+    for light in lights:
+
+        async def callback(_e=None, _ctx=None):
+            await resolve_layers()
+
+        await add_triggers(
+            [
+                {
+                    "platform": "state",
+                    "from": "unavailable",
+                    "entity_id": [light["entity"]],
+                }
+            ],
+            callback,
+        )
 
     await resolve_layers()
 
@@ -806,16 +826,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await set_layer(idx, False)
 
         if trigger_enable:
-            await add_trigger(trigger_enable, enable_layer)
+            await add_triggers(trigger_enable, enable_layer)
         if trigger_disable:
-            await add_trigger(trigger_disable, disable_layer)
+            await add_triggers(trigger_disable, disable_layer)
         if enable_if:
             transformed_conditions = await async_validate_conditions_config(
                 hass, enable_if
             )
             transformed_conditions = _transform_conditions(transformed_conditions)
 
-            async def check_conditions(e=None, ctx=None, idx=idx, transformed_conditions=transformed_conditions):
+            async def check_conditions(
+                e=None, ctx=None, idx=idx, transformed_conditions=transformed_conditions
+            ):
                 all_true = True if len(transformed_conditions) > 0 else False
                 for condition in transformed_conditions:
                     check = await async_from_config(hass, condition)
@@ -826,7 +848,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
                 await set_layer(idx, all_true)
 
-            async def debounced_check_conditions(e=None, ctx=None, layer=layer, check_conditions=check_conditions):
+            async def debounced_check_conditions(
+                e=None, ctx=None, layer=layer, check_conditions=check_conditions
+            ):
                 await do_debounce(
                     hass,
                     entry,
@@ -835,11 +859,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     check_conditions(),
                 )
 
-
             triggers = []
             for condition in enable_if:
                 _condition_to_triggers(condition, triggers)
-            await add_trigger(triggers, debounced_check_conditions)
+            await add_triggers(triggers, debounced_check_conditions)
             await debounced_check_conditions()
 
     async def runtime():
@@ -1032,11 +1055,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await toggle_light(light["entity"])
 
         if down:
-            await add_trigger(down, dim_down)
+            await add_triggers(down, dim_down)
         if up:
-            await add_trigger(up, dim_up)
+            await add_triggers(up, dim_up)
         if toggle:
-            await add_trigger(toggle, dim_toggle)
+            await add_triggers(toggle, dim_toggle)
 
     er = entity_registry.async_get(hass)
     layer_sensors = []
