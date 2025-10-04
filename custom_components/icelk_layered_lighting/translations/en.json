@@ -127,6 +127,20 @@
                 }
             }
         },
+        "layer_toggle": {
+            "name": "Toggle a light layer",
+            "description": "Toggles the effects of a light layer.",
+            "fields": {
+                "layer_id": {
+                    "name": "Layer ID",
+                    "description": "Layer name / ID to disable."
+                },
+                "entry": {
+                    "name": "Config entry",
+                    "description": "Which entry to operate on."
+                }
+            }
+        },
         "update_internal_state": {
             "name": "Update internal state (advanced)",
             "description": "When this integration starts, it caches the state for all lights. Each scene is activated which results in flickering. If any scene changes, you must call this. Maybe do it once per day.",
