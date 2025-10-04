@@ -589,7 +589,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     255, max(int(altitude * brightness_factor * 255), min_brightness)
                 ),
                 "color_temp_kelvin": 2700,
-                "transition": 60,
+                # "transition": 60,
             },
             check_override=check_override,
             use_switch_threshold=True,
