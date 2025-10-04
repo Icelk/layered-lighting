@@ -6,7 +6,8 @@ import asyncio
 from datetime import datetime, time
 import logging
 from math import pi
-from typing import TYPE_CHECKING, Callable, Literal, TypedDict
+from random import random
+from typing import TYPE_CHECKING, Callable, Coroutine, Literal, TypedDict
 
 # from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry
@@ -62,6 +63,27 @@ class _SunConfig(TypedDict):
 
 
 # TODO: in 2026: remove hass from async_extract_entity_ids
+
+debounce: dict[str, float] = {}
+
+
+async def do_debounce(
+    hass: HomeAssistant, entry: ConfigEntry, id: str, t: float, cb: Coroutine
+):
+    global debounce
+    rand = random()
+
+    async def task():
+        global debounce
+        await sleep(t)
+        if debounce.get(id) == rand:
+            await cb
+            del debounce[id]
+        else:
+            cb.close()
+
+    entry.async_create_background_task(hass, task(), f"debounce {id}")
+    debounce[id] = rand
 
 
 entries = {}
@@ -155,6 +177,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     switch_threshold = (
         v if (v := entry.options.get("switch_threshold")) is not None else 20
     ) / 100
+    watch_scenes = f if (f := entry.options.get("watch_scenes")) is not None else True
     layers: list[_Layer] = entry.options.get("layers") or []
     layers_id_to_idx = {layer["name"]: idx for (idx, layer) in enumerate(layers)}
     lights: list[_Light] = entry.options.get("lights") or []
@@ -194,6 +217,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         return get_data()["triggers"].append(unsub)
 
+    async def attach_trigger_manually_handle_unsub(trigger, callback):
+        triggers = await async_validate_trigger_config(
+            hass, _transform_triggers(trigger)
+        )
+        return await async_initialize_triggers(
+            hass,
+            triggers,
+            callback,
+            domain=entry.domain,
+            name=entry.title,
+            log_cb=_LOGGER.log,
+        )
+
     async def action(action):
         await async_call_from_config(hass, action, validate_config=True)
 
@@ -222,6 +258,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 break
 
     device_callbacks: list[dict[str, Callable]] = []
+    watched_scenes: list[Callable] = []
 
     layers_enabled = [False for _ in layers]
     overrides: list[None | datetime] = [None for _ in lights]
@@ -636,9 +673,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     resolving_layers = False
 
     async def resolve_layers():
-        global resolving_layers
+        nonlocal resolving_layers
+
+        _LOGGER.info("Resolve layers")
+
+        if resolving_layers:
+            return
+
         resolving_layers = True
         device_callbacks.clear()
+
+        for watched_scene in watched_scenes:
+            watched_scene()
+
+        watched_scenes.clear()
+
+        scenes: list[str] = []
+
         for i in range(len(overrides)):
             overrides[i] = datetime.now()
         for layer in layers:
@@ -667,10 +718,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     scene_entities = layer["action"][0]["target"]["entity_id"]
                     if isinstance(scene_entities, list):
                         for scene in scene_entities:
+                            scenes.append(scene)
                             s = hass.states.get(scene)
                             light_entities = s.attributes["entity_id"]
                             entities = entities.union(light_entities)
                     else:
+                        scenes.append(scene_entities)
                         s = hass.states.get(scene_entities)
                         light_entities = s.attributes["entity_id"]
                         entities = entities.union(light_entities)
@@ -731,6 +784,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for i in range(len(overrides)):
             overrides[i] = None
             last_states[i] = None
+
+        if watch_scenes:
+            for scene in scenes:
+                _LOGGER.info("Set up trigger watcher for %s", scene)
+
+                async def cb(e=None, ctx=None, scene=scene):
+                    _LOGGER.info("Resolving layers because %s changed", scene)
+                    await do_debounce(
+                        hass,
+                        entry,
+                        f"resolve layer scene {scene}",
+                        60,
+                        resolve_layers(),
+                    )
+
+                watched_scenes.append(
+                    await attach_trigger_manually_handle_unsub(
+                        [{"platform": "state", "entity_id": [scene]}], cb
+                    )
+                )
+
         resolving_layers = False
         await update_layers()
 
@@ -759,8 +833,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def runtime():
         while True:
             await sleep(action_interval)
-            if not resolving_layers:
-                await update_layers()
+            await update_layers()
 
     entry.async_create_background_task(hass, runtime(), "update lights")
 
