@@ -181,7 +181,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     switch_threshold = (
         v if (v := entry.options.get("switch_threshold")) is not None else 20
     ) / 100
-    watch_scenes = f if (f := entry.options.get("watch_scenes")) is not None else True
     layers: list[_Layer] = entry.options.get("layers") or []
     layers_id_to_idx = {layer["name"]: idx for (idx, layer) in enumerate(layers)}
     lights: list[_Light] = entry.options.get("lights") or []
@@ -262,7 +261,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 break
 
     device_callbacks: list[dict[str, Callable]] = []
-    watched_scenes: list[Callable] = []
 
     layers_enabled = [False for _ in layers]
     overrides: list[None | datetime] = [None for _ in lights]
@@ -688,11 +686,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         resolving_layers = True
         device_callbacks.clear()
 
-        for watched_scene in watched_scenes:
-            watched_scene()
-
-        watched_scenes.clear()
-
         scenes: list[str] = []
 
         for i in range(len(overrides)):
@@ -789,26 +782,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for i in range(len(overrides)):
             overrides[i] = None
             last_states[i] = None
-
-        if watch_scenes:
-            for scene in scenes:
-                _LOGGER.info("Set up trigger watcher for %s", scene)
-
-                async def cb(e=None, ctx=None, scene=scene):
-                    _LOGGER.info("Resolving layers because %s changed", scene)
-                    await do_debounce(
-                        hass,
-                        entry,
-                        f"resolve layer scene {scene}",
-                        60,
-                        resolve_layers(),
-                    )
-
-                watched_scenes.append(
-                    await attach_trigger_manually_handle_unsub(
-                        [{"platform": "state", "entity_id": [scene]}], cb
-                    )
-                )
 
         resolving_layers = False
         await update_layers()
