@@ -865,6 +865,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for condition in enable_if:
                 _condition_to_triggers(condition, triggers)
             await add_trigger(triggers, debounced_check_conditions)
+            await debounced_check_conditions()
 
     async def runtime():
         while True:
