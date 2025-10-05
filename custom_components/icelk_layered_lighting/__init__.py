@@ -671,7 +671,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 s := hass.states.get(light["entity"])
             ) is not None and s.state != "unavailable"
 
-        ll = set([light["entity"] for idx, light in enumerate(lights) if lights_loaded[idx]])
+        ll = set(
+            [light["entity"] for idx, light in enumerate(lights) if lights_loaded[idx]]
+        )
 
         resolving_layers = True
         device_callbacks.clear()
@@ -1207,10 +1209,15 @@ def _transform_conditions(conditions):
                 condition["after"] = t
             except Exception:
                 pass
+        if (cs := condition.get("conditions")) and isinstance(cs, list):
+            _transform_conditions(cs)
     return conditions
 
 
 def _condition_to_triggers(condition, triggers=[]):
+    def single_list(v: str | list[str]) -> list[str]:
+        return v if isinstance(v, list) else [v]
+
     match condition["condition"]:
         case "time":
             if (before := condition.get("before")) is not None:
@@ -1227,7 +1234,7 @@ def _condition_to_triggers(condition, triggers=[]):
         case "state":
             trigger = {
                 "platform": "state",
-                "entity_id": [condition["entity_id"]],
+                "entity_id": single_list(condition["entity_id"]),
                 "to": condition["state"],
             }
             if attr := condition.get("attribute"):
@@ -1239,7 +1246,7 @@ def _condition_to_triggers(condition, triggers=[]):
 
             trigger = {
                 "platform": "state",
-                "entity_id": [condition["entity_id"]],
+                "entity_id": single_list(condition["entity_id"]),
                 "from": condition["state"],
             }
             if attr := condition.get("attribute"):
@@ -1249,7 +1256,7 @@ def _condition_to_triggers(condition, triggers=[]):
         case "numeric_state":
             trigger = {
                 "platform": "numeric_state",
-                "entity_id": [condition["entity_id"]],
+                "entity_id": single_list(condition["entity_id"]),
             }
             if above := condition.get("above"):
                 trigger["above"] = above
@@ -1265,7 +1272,7 @@ def _condition_to_triggers(condition, triggers=[]):
             if below := condition.get("below"):
                 trigger = {
                     "platform": "numeric_state",
-                    "entity_id": [condition["entity_id"]],
+                    "entity_id": single_list(condition["entity_id"]),
                     "above": below,
                 }
                 if attr := condition.get("attribute"):
@@ -1276,7 +1283,7 @@ def _condition_to_triggers(condition, triggers=[]):
             if above := condition.get("above"):
                 trigger = {
                     "platform": "numeric_state",
-                    "entity_id": [condition["entity_id"]],
+                    "entity_id": single_list(condition["entity_id"]),
                     "below": above,
                 }
                 if attr := condition.get("attribute"):
@@ -1284,5 +1291,8 @@ def _condition_to_triggers(condition, triggers=[]):
                 if vt := condition.get("value_template"):
                     trigger["value_template"] = vt
                 triggers.append(trigger)
+        case "not" | "and" | "or":
+            for c in condition.get("conditions") or []:
+                _condition_to_triggers(c, triggers)
 
     return triggers
