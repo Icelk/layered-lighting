@@ -761,11 +761,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         )
 
                     callbacks[entity] = cb2
-            elif len(entities) == 1:
+            elif len(entities) <= 1:
                 for entity in entities:
 
                     async def cb3(layer=layer):
-                        await action(layer["action"])
+                        await action(layer["action"][0])
 
                     callbacks[entity] = cb3
             else:
