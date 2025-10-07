@@ -878,7 +878,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def runtime():
         while True:
             await sleep(action_interval)
-            await update_layers()
+            if not resolving_layers:
+                await update_layers()
 
     entry.async_create_background_task(hass, runtime(), "update lights")
 
@@ -998,7 +999,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "on",
                 {
                     "brightness": int(current_brightness),
-                    "transition": interval * 2
+                    "transition": interval * 3
                     if iterations == 0
                     else (now - start).total_seconds() / iterations,
                 },
