@@ -333,6 +333,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         return False
 
+    async def check_last_state(
+        entity: str, idx: int, entity_state: State | None = None, sleep_t=1
+    ) -> bool:
+        last_state = last_states[idx]
+        # get state
+        entity_state = entity_state if entity_state else hass.states.get(entity)
+
+        new_state = extract_full_state(entity_state)
+
+        # if last observed state != the observed state, someone's changed!
+        if last_state is not None and full_states_different(last_state, new_state):
+            set_override(idx, datetime.now())
+            return True
+        # set this while we try to get the new state
+        # because that takes time and possibly this is going to be called when we are trying to find out
+        last_states[idx] = None
+
+        return False
+
+    async def update_last_state(entity: str, idx: int, sleep_t=1):
+        # apparently groups don't update immediately
+        await sleep(sleep_t)
+        s = hass.states.get(entity)
+        next_state = extract_full_state(s)
+        last_states[idx] = {**next_state}
+
     async def set_entity_state(
         entity: str,
         state: Literal["on", "off"],
@@ -355,36 +381,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     and manual_detect_enabled
                     and (idx := lights_id_to_idx.get(entity))
                 ):
-                    last_state = last_states[idx]
-                    # get state
-                    entity_state = (
-                        entity_state if entity_state else hass.states.get(entity)
-                    )
-
-                    new_state = extract_full_state(entity_state)
-
-                    # if last observed state != the observed state, someone's changed!
-                    if last_state is not None and full_states_different(
-                        last_state, new_state
-                    ):
-                        set_override(idx, datetime.now())
-                        # _LOGGER.warning(
-                        #     "detected manual override",
-                        #     entity,
-                        #     last_state,
-                        #     new_state,
-                        #     state,
-                        #     attrs,
-                        #     entity_state.attributes.get("color_mode") != "brightness",
-                        #     entity_state.attributes.get("supported_color_modes")
-                        #     != ["brightness"],
-                        #     entity_state.attributes,
-                        #     hass.states.get(entity).attributes,
-                        # )
+                    if await check_last_state(entity, idx, entity_state):
                         return
-                    # set this while we try to get the new state
-                    # because that takes time and possibly this is going to be called when we are trying to find out
-                    last_states[idx] = None
 
                 await hass.services.async_call(
                     "light",
@@ -397,11 +395,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     and manual_detect_enabled
                     and (idx := lights_id_to_idx.get(entity))
                 ):
-                    # apparently groups don't update immediately
-                    await sleep(1)
-                    s = hass.states.get(entity)
-                    next_state = extract_full_state(s)
-                    last_states[idx] = {**next_state}
+                    await update_last_state(entity, idx)
 
             case "switch":
                 brightness = attrs.get("brightness")
@@ -416,21 +410,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     and manual_detect_enabled
                     and (idx := lights_id_to_idx.get(entity))
                 ):
-                    last_state = last_states[idx]
-                    # get state
-                    entity_state = (
-                        entity_state if entity_state else hass.states.get(entity)
-                    )
-
-                    new_state = {"state": entity_state.state}
-
-                    # if last observed state != the observed state, someone's changed!
-                    if last_state is not None and last_state != new_state:
-                        set_override(idx, datetime.now())
+                    if await check_last_state(entity, idx, entity_state):
                         return
-                    # set this while we try to get the new state
-                    # because that takes time and possibly this is going to be called when we are trying to find out
-                    last_states[idx] = None
+
                 await hass.services.async_call(
                     "switch",
                     "turn_on"
@@ -453,11 +435,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     and manual_detect_enabled
                     and (idx := lights_id_to_idx.get(entity))
                 ):
-                    # apparently groups don't update immediately
-                    await sleep(1)
-                    s = hass.states.get(entity)
-                    next_state = {"state": s.state}
-                    last_states[idx] = {**next_state}
+                    await update_last_state(entity, idx)
             case "input_boolean":
                 hass.states.async_set(entity, state, {"entity_id": entity})
 
@@ -765,7 +743,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 for entity in entities:
 
                     async def cb3(layer=layer):
+                        if manual_detect_enabled and (
+                            idx := lights_id_to_idx.get(entity)
+                        ):
+                            if await check_last_state(entity, idx):
+                                return
                         await action(layer["action"][0])
+                        if manual_detect_enabled and (
+                            idx := lights_id_to_idx.get(entity)
+                        ):
+                            await update_last_state(entity, idx)
 
                     callbacks[entity] = cb3
             else:
