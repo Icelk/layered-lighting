@@ -334,7 +334,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     async def check_last_state(
-        entity: str, idx: int, entity_state: State | None = None, sleep_t=1
+        entity: str, idx: int, entity_state: State | None = None
     ) -> bool:
         last_state = last_states[idx]
         # get state
@@ -352,7 +352,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         return False
 
-    async def update_last_state(entity: str, idx: int, sleep_t=1):
+    async def update_last_state(entity: str, idx: int, sleep_t=0.3):
         # apparently groups don't update immediately
         await sleep(sleep_t)
         s = hass.states.get(entity)
@@ -379,7 +379,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if (
                     check_override
                     and manual_detect_enabled
-                    and (idx := lights_id_to_idx.get(entity))
+                    and ((idx := lights_id_to_idx.get(entity)) is not None)
                 ):
                     if await check_last_state(entity, idx, entity_state):
                         return
@@ -393,7 +393,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if (
                     check_override
                     and manual_detect_enabled
-                    and (idx := lights_id_to_idx.get(entity))
+                    and ((idx := lights_id_to_idx.get(entity)) is not None)
                 ):
                     await update_last_state(entity, idx)
 
@@ -408,7 +408,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if (
                     check_override
                     and manual_detect_enabled
-                    and (idx := lights_id_to_idx.get(entity))
+                    and ((idx := lights_id_to_idx.get(entity)) is not None)
                 ):
                     if await check_last_state(entity, idx, entity_state):
                         return
@@ -433,11 +433,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if (
                     check_override
                     and manual_detect_enabled
-                    and (idx := lights_id_to_idx.get(entity))
+                    and ((idx := lights_id_to_idx.get(entity)) is not None)
                 ):
                     await update_last_state(entity, idx)
             case "input_boolean":
+                if (
+                    check_override
+                    and manual_detect_enabled
+                    and ((idx := lights_id_to_idx.get(entity)) is not None)
+                ):
+                    if await check_last_state(entity, idx, entity_state):
+                        return
                 hass.states.async_set(entity, state, {"entity_id": entity})
+                if (
+                    check_override
+                    and manual_detect_enabled
+                    and ((idx := lights_id_to_idx.get(entity)) is not None)
+                ):
+                    await update_last_state(entity, idx)
 
     async def toggle_light(entity: str):
         idx = lights_id_to_idx.get(entity)
@@ -741,15 +754,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             elif len(entities) <= 1:
                 for entity in entities:
 
-                    async def cb3(layer=layer):
-                        if manual_detect_enabled and (
-                            idx := lights_id_to_idx.get(entity)
+                    async def cb3(check_override=True, layer=layer, entity=entity):
+                        if (
+                            check_override
+                            and manual_detect_enabled
+                            and ((idx := lights_id_to_idx.get(entity)) is not None)
                         ):
                             if await check_last_state(entity, idx):
                                 return
                         await action(layer["action"][0])
-                        if manual_detect_enabled and (
-                            idx := lights_id_to_idx.get(entity)
+                        if (
+                            check_override
+                            and manual_detect_enabled
+                            and ((idx := lights_id_to_idx.get(entity)) is not None)
                         ):
                             await update_last_state(entity, idx)
 
