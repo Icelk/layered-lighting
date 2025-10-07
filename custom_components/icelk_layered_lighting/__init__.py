@@ -446,6 +446,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 set_override(idx, None)
                 await update_light(idx)
                 return
+        if idx is not None:
+            set_override(idx, datetime.now())
         s = hass.states.get(entity)
         if s.state == "off":
             # special turn on logic (initial brightness)
@@ -489,9 +491,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 entity_state=s,
                 check_override=False,
             )
-        idx = lights_id_to_idx.get(entity)
-        if idx is not None:
-            set_override(idx, datetime.now())
 
     async def do_custom_lighting(
         entity_id: str, config: _SunConfig, check_override=True
