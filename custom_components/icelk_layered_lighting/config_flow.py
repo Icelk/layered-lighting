@@ -158,7 +158,7 @@ OPTIONS_SCHEMA = vol.Schema(
                         },
                     ),
                     "action": selector.ObjectSelectorField(
-                        label="Action when layer activates",
+                        label="Action to achieve desired state while this layer is active. Can be scene activation (`scene.turn_on`) or an action from this integration (i.e. sun_power), or if you only have a single light, it can be anything)",
                         required=True,
                         selector={"action": {}},
                     ),
