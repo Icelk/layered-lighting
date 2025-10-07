@@ -477,6 +477,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
             ):
                 await cb(check_override=False)
+                # someone else toggled the light while we were turning it on
+                # that resulted in re-setting the override.
+                # We should not turn on again.
+                if idx is not None and overrides[idx] is None:
+                    return
                 s = hass.states.get(entity).state
                 if s == "off":
                     # normal turn on
@@ -1053,8 +1058,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if dimming[idx] and not dimming_started[idx]:
                 dimming[idx] = False
                 await toggle_light(light["entity"])
-            dimming[idx] = False
-            dimming_started[idx] = False
+            else:
+                dimming[idx] = False
+                dimming_started[idx] = False
 
         async def dim_toggle(e=None, ctx=None, idx=idx, light=light):
             await toggle_light(light["entity"])
