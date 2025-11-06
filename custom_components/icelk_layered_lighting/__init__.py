@@ -1051,9 +1051,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         async def dim_down(e=None, ctx=None, idx=idx, light=light):
             dimming[idx] = True
-            entry.async_create_task(
-                hass, dim(light["entity"]), f"dim {light['entity']}"
-            )
+            await dim(light["entity"])
 
         async def dim_up(e=None, ctx=None, idx=idx, light=light):
             if dimming[idx] and not dimming_started[idx]:
