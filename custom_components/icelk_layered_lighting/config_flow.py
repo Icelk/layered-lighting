@@ -69,7 +69,6 @@ OPTIONS_SCHEMA = vol.Schema(
                         required=True,
                         selector={
                             "entity": {
-                                "required": True,
                                 "multiple": False,
                                 "filter": {
                                     "domain": ["light", "switch", "input_boolean"]
@@ -85,19 +84,17 @@ OPTIONS_SCHEMA = vol.Schema(
                                 "min": 0.1,
                                 "max": 10,
                                 "step": "any",
-                                "default": 1,
                             }
                         },
                     ),
                     "min_brightness": selector.ObjectSelectorField(
-                        label="Minimum brightness while on",
+                        label="Minimum brightness while on (default: 30%)",
                         required=False,
                         selector={
                             "number": {
                                 "min": 1,
                                 "max": 100,
                                 "step": 1,
-                                "default": 30,
                                 "unit_of_measurement": "%",
                             }
                         },
@@ -149,7 +146,6 @@ OPTIONS_SCHEMA = vol.Schema(
                         required=False,
                         selector={
                             "entity": {
-                                "required": True,
                                 "multiple": True,
                                 "filter": {
                                     "domain": ["light", "switch", "input_boolean"]
