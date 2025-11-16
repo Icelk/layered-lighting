@@ -67,44 +67,55 @@ OPTIONS_SCHEMA = vol.Schema(
                     "entity": selector.ObjectSelectorField(
                         label="Entity ID",
                         required=True,
-                        selector=selector.EntitySelector(
-                            selector.EntitySelectorConfig(
-                                filter=selector.EntityFilterSelectorConfig(
-                                    domain=["light", "switch", "input_boolean"]
-                                )
-                            )
-                        ),
+                        selector={
+                            "entity": {
+                                "required": True,
+                                "multiple": False,
+                                "filter": {
+                                    "domain": ["light", "switch", "input_boolean"]
+                                },
+                            }
+                        },
                     ),
                     "factor": selector.ObjectSelectorField(
                         label="Light brightness factor (for sun power action) (also controls dim speed)",
                         required=False,
-                        selector=selector.NumberSelector(
-                            selector.NumberSelectorConfig(min=0.1, max=10, step="any")
-                        ),
+                        selector={
+                            "number": {
+                                "min": 0.1,
+                                "max": 10,
+                                "step": "any",
+                                "default": 1,
+                            }
+                        },
                     ),
                     "min_brightness": selector.ObjectSelectorField(
-                        label="Minimum brightness while on (default: 30%)",
+                        label="Minimum brightness while on",
                         required=False,
-                        selector=selector.NumberSelector(
-                            selector.NumberSelectorConfig(
-                                min=1, max=100, step=1, unit_of_measurement="%"
-                            )
-                        ),
+                        selector={
+                            "number": {
+                                "min": 1,
+                                "max": 100,
+                                "step": 1,
+                                "default": 30,
+                                "unit_of_measurement": "%",
+                            }
+                        },
                     ),
                     "dimming_btn_down_trigger": selector.ObjectSelectorField(
                         label="Dimming: button down trigger (also available as action)",
                         required=False,
-                        selector=selector.TriggerSelector(),
+                        selector={"trigger": {}},
                     ),
                     "dimming_btn_up_trigger": selector.ObjectSelectorField(
                         label="Dimming: button up trigger (also available as action)",
                         required=False,
-                        selector=selector.TriggerSelector(),
+                        selector={"trigger": {}},
                     ),
                     "toggle_trigger": selector.ObjectSelectorField(
                         label="Toggle: trigger (also available as action) (don't use if you have dimming)",
                         required=False,
-                        selector=selector.TriggerSelector(),
+                        selector={"trigger": {}},
                     ),
                 },
                 multiple=True,
@@ -121,34 +132,35 @@ OPTIONS_SCHEMA = vol.Schema(
                     "enable_if": selector.ObjectSelectorField(
                         label="Enable layer if entity has state (triggers below are automatically populated) (State, Numeric state, Time, and logical operators (not, and, or) are supported) (if you provide multiple, all of the conditions need to be fulfilled)",
                         required=False,
-                        selector=selector.ConditionSelector(),
+                        selector={"condition": {}},
                     ),
                     "trigger_enable": selector.ObjectSelectorField(
                         label="Enable layer on (also available as action)",
                         required=False,
-                        selector=selector.TriggerSelector(),
+                        selector={"trigger": {}},
                     ),
                     "trigger_disable": selector.ObjectSelectorField(
                         label="Disable layer on (also available as action)",
                         required=False,
-                        selector=selector.TriggerSelector(),
+                        selector={"trigger": {}},
                     ),
                     "lights": selector.ObjectSelectorField(
                         label="Lights (leave empty for all, if action is scene, this is auto-populated)",
                         required=False,
-                        selector=selector.EntitySelector(
-                            selector.EntitySelectorConfig(
-                                multiple=True,
-                                filter=selector.EntityFilterSelectorConfig(
-                                    domain=["light", "switch", "input_boolean"]
-                                ),
-                            )
-                        ),
+                        selector={
+                            "entity": {
+                                "required": True,
+                                "multiple": True,
+                                "filter": {
+                                    "domain": ["light", "switch", "input_boolean"]
+                                },
+                            }
+                        },
                     ),
                     "action": selector.ObjectSelectorField(
                         label="Action to achieve desired state while this layer is active. Can be scene activation (`scene.turn_on`) or an action from this integration (i.e. sun_power), or if you only have a single light, it can be anything)",
                         required=True,
-                        selector=selector.ActionSelector(),
+                        selector={"action": {}},
                     ),
                 },
                 multiple=True,
