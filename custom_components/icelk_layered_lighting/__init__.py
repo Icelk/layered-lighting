@@ -806,10 +806,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry_services["update_internal_state"] = handle_update_internal_state
 
-    for light in lights:
+    for idx, light in enumerate(lights):
 
         async def callback(_e=None, _ctx=None):
-            await resolve_layers()
+            if not lights_loaded[idx]:
+                await resolve_layers()
 
         await add_triggers(
             [
