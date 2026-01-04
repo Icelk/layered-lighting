@@ -3,7 +3,7 @@
 from __future__ import annotations
 from asyncio import sleep
 import asyncio
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import logging
 from math import pi
 from random import random
@@ -459,8 +459,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 set_override(idx, None)
                 await update_light(idx)
                 return
-        if idx is not None:
+
             set_override(idx, datetime.now())
+
         s = hass.states.get(entity)
         if s.state == "off":
             # special turn on logic (initial brightness)
@@ -614,11 +615,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entity = light["entity"]
 
         layer = light_get_layer(entity)
-        # above override logic, since we always want to show correct layer
-        light_set_sensor(idx, "<none => off>" if layer == -1 else layers[layer]["name"])
 
         # override
         override = overrides[idx]
+
+        # above override logic, since we always want to show correct layer
+        light_set_sensor(
+            idx,
+            f"<overridden until {'forever' if manual_override_timeout == 0 else override + timedelta(seconds=manual_override_timeout * 60)}>"
+            if override is not None
+            else ("<none => off>" if layer == -1 else layers[layer]["name"]),
+        )
+
         if override is not None:
             if manual_override_timeout != 0 and (
                 (datetime.now() - override).total_seconds()
@@ -660,6 +668,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if resolving_layers:
             should_re_resolve = True
             return
+        should_re_resolve = False
+        resolving_layers = True
 
         for idx, light in enumerate(lights):
             lights_loaded[idx] = (
@@ -670,7 +680,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             [light["entity"] for idx, light in enumerate(lights) if lights_loaded[idx]]
         )
 
-        resolving_layers = True
         device_callbacks.clear()
 
         scenes: list[str] = []
@@ -798,7 +807,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info(
                 "Re-resolving layers because we got requested to do so when we ran last."
             )
-            should_re_resolve = False
             await resolve_layers()
 
     async def handle_update_internal_state(_call: ServiceCall):
@@ -808,7 +816,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     for idx, light in enumerate(lights):
 
-        async def callback(_e=None, _ctx=None):
+        async def callback(_e=None, _ctx=None, idx=idx):
             if not lights_loaded[idx]:
                 await resolve_layers()
 
