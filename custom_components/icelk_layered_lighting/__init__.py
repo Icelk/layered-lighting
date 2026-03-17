@@ -730,8 +730,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
                 entities = list(set(entities).intersection(ll))
 
-                await action(layer["action"][0])
-                await sleep(4 + len(entities) * 0.1)
+                if len(entities) == 0:
+                    continue
+
+                try:
+                    await action(layer["action"][0])
+                    await sleep(4 + len(entities) * 0.1)
+                except: # noqa: E722
+                    # we don't have any data here so we won't set any.
+                    # better than the default to either
+                    # a) just continue => this layer gets the previous layer's data
+                    # b) all lights are just off
+                    continue
+
                 for entity in entities:
                     state = hass.states.get(entity)
                     if state is not None:
